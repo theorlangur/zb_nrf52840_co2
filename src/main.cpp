@@ -19,15 +19,7 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/drivers/gpio.h>
 
-extern "C"
-{
-#include <zboss_api.h>
-#include <zboss_api_addons.h>
-#include <zb_mem_config_med.h>
-#include <zigbee/zigbee_app_utils.h>
-#include <zigbee/zigbee_error_handler.h>
-#include <zb_nrf_platform.h>
-}
+#include "zb/zb_main.hpp"
 #include "zb_dimmable_light.h"
 
 #define RUN_STATUS_LED                  DK_LED1
@@ -129,6 +121,8 @@ typedef struct {
 
 /* Zigbee device application context storage. */
 static bulb_device_ctx_t dev_ctx;
+
+constexpr static  auto identAttrs =  zb::MakeAttributeList(0, zb::AttrDescSimplified{.id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = zb::AttAccess::Read, .pData = &dev_ctx.identify_attr.identify_time});
 
 ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
 	identify_attr_list,

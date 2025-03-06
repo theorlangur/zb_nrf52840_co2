@@ -13,6 +13,7 @@ project("Zigbee CO2 Sensor V2")
 # NORDIC SDK APP START
 target_sources(app PRIVATE
   src/main.cpp
+  # src/zb/zb_main.hpp
 )
 
 target_include_directories(app PRIVATE include)
