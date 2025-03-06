@@ -1,0 +1,15 @@
+reserved_off:
+  address: 0x00000
+  size: 0x26000
+zboss_nvram:
+  address: 0xed000
+  size: 0x4000
+zboss_product_config:
+  address: 0xf1000
+  size: 0x0800
+settings_storage:
+  address: 0xf1800
+  size: 0x2800
+bootloader:
+  address: 0xf4000
+  size: 0xc000
