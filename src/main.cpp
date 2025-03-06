@@ -122,7 +122,7 @@ typedef struct {
 /* Zigbee device application context storage. */
 static bulb_device_ctx_t dev_ctx;
 
-constexpr static  auto identAttrs =  zb::MakeAttributeList(0, zb::AttrDescSimplified{.id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = zb::AttAccess::Read, .pData = &dev_ctx.identify_attr.identify_time});
+constexpr static  auto identAttrs =  zb::MakeAttributeList(0, zb::ADesc{.id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = zb::AttAccess::Read, .pData = &dev_ctx.identify_attr.identify_time});
 
 ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
 	identify_attr_list,

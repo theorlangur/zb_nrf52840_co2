@@ -54,18 +54,16 @@ namespace zb
     };
 
     template<class T>
-    struct AttrDescSimplified
+    struct ADesc
     {
         using simplified_tag = void;
         zb_uint16_t id;
         AttAccess a;
         T *pData;
     };
-    template<class C>
-    concept IsAttrSimplified = requires{ typename C::simplified_tag; };
 
     template<class T>
-    constexpr zb_zcl_attr_t AttrDesc(AttrDescSimplified<T> d)
+    constexpr zb_zcl_attr_t AttrDesc(ADesc<T> d)
     {
         return {
             .id = d.id, 
@@ -86,10 +84,10 @@ namespace zb
         void operator=(TAttributeList &&) = delete;
 
 
-        template<class... Attributes> requires (IsAttrSimplified<Attributes> && ...)
-        constexpr TAttributeList(zb_uint16_t r, Attributes... d):
+        template<class... T>
+        constexpr TAttributeList(zb_uint16_t r, ADesc<T>... d):
             attributes{
-                AttrDesc(AttrDescSimplified{ .id = ZB_ZCL_ATTR_GLOBAL_CLUSTER_REVISION_ID, .a = AttAccess::Read, .pData = &rev }),
+                AttrDesc(zb::ADesc{ .id = ZB_ZCL_ATTR_GLOBAL_CLUSTER_REVISION_ID, .a = AttAccess::Read, .pData = &rev }),
                 (AttrDesc(d), ...)
                 , g_LastAttribute
             },
@@ -103,10 +101,10 @@ namespace zb
         zb_uint16_t rev;
     };
 
-    template<class... Attributes> requires (IsAttrSimplified<Attributes> && ...)
-    constexpr auto MakeAttributeList(zb_uint16_t r, Attributes... d)->TAttributeList<sizeof...(Attributes)>
+    template<class... T>
+    constexpr auto MakeAttributeList(zb_uint16_t r, ADesc<T>... d)->TAttributeList<sizeof...(T)>
     {
-        return TAttributeList<sizeof...(Attributes)>(r, d...);
+        return TAttributeList<sizeof...(T)>(r, d...);
     }
 }
 
