@@ -124,12 +124,12 @@ typedef struct {
 static bulb_device_ctx_t dev_ctx;
 
 
-constinit static auto identify_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.identify_attr);
-constinit static auto on_off_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.on_off_attr);
-constinit static auto basic_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.basic_attr);
+constinit static auto identify_attr_list =  zb::to_attributes(dev_ctx.identify_attr);
+constinit static auto on_off_attr_list =  zb::to_attributes(dev_ctx.on_off_attr);
+constinit static auto basic_attr_list =  zb::to_attributes(dev_ctx.basic_attr);
 
 zb::zb_zcl_basic_names_t basic_names;
-constinit static auto basic_names_attr_list =  zb::get_attributes_from_cluster_struct(basic_names);
+constinit static auto basic_names_attr_list =  zb::to_attributes(basic_names);
 
 //ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
 //	identify_attr_list,

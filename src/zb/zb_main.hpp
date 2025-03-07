@@ -131,7 +131,7 @@ namespace zb
     constexpr auto get_cluster_description();
 
     template<class ZbS>
-    constexpr auto get_attributes_from_cluster_struct(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
+    constexpr auto to_attributes(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
 }
 
 #endif
