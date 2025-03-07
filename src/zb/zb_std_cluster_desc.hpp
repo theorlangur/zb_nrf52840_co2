@@ -3,6 +3,15 @@
 
 #include "zb_main.hpp"
 
+extern "C"
+{
+#include <zboss_api_addons.h>
+#include <zb_mem_config_med.h>
+#include <zigbee/zigbee_app_utils.h>
+#include <zigbee/zigbee_error_handler.h>
+#include <zb_nrf_platform.h>
+}
+
 namespace zb
 {
 
@@ -51,8 +60,8 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_names_t>()
 	return get_cluster_description<zb_zcl_basic_min_t>() + 
         cluster_struct_desc_t<
 		0,
-		cluster_mem_desc_t{.m = &T::manufacturer, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING},
-		cluster_mem_desc_t{.m = &T::model, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING}
+		cluster_mem_desc_t{.m = &T::manufacturer, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read, .type=Type::CharStr},
+		cluster_mem_desc_t{.m = &T::model, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read, .type=Type::CharStr}
 	>{};
 }
 
@@ -65,13 +74,13 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_attrs_ext_t>()
 		cluster_mem_desc_t{.m = &T::app_version, .id = ZB_ZCL_ATTR_BASIC_APPLICATION_VERSION_ID, .a = Access::Read},
 		cluster_mem_desc_t{.m = &T::stack_version, .id = ZB_ZCL_ATTR_BASIC_STACK_VERSION_ID, .a = Access::Read},
 		cluster_mem_desc_t{.m = &T::hw_version, .id = ZB_ZCL_ATTR_BASIC_HW_VERSION_ID, .a = Access::Read},
-		cluster_mem_desc_t{.m = &T::mf_name, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING},
-		cluster_mem_desc_t{.m = &T::model_id, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING},
-		cluster_mem_desc_t{.m = &T::date_code, .id = ZB_ZCL_ATTR_BASIC_DATE_CODE_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING},
-		cluster_mem_desc_t{.m = &T::power_source, .id = ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_8BIT_ENUM},
-		cluster_mem_desc_t{.m = &T::location_id, .id = ZB_ZCL_ATTR_BASIC_LOCATION_DESCRIPTION_ID, .a = Access::RW, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING},
-		cluster_mem_desc_t{.m = &T::ph_env, .id = ZB_ZCL_ATTR_BASIC_PHYSICAL_ENVIRONMENT_ID, .a = Access::RW, .type=ZB_ZCL_ATTR_TYPE_8BIT_ENUM},
-		cluster_mem_desc_t{.m = &T::sw_ver, .id = ZB_ZCL_ATTR_BASIC_SW_BUILD_ID, .a = Access::Read, .type=ZB_ZCL_ATTR_TYPE_CHAR_STRING}
+		cluster_mem_desc_t{.m = &T::mf_name, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read, .type=Type::CharStr},
+		cluster_mem_desc_t{.m = &T::model_id, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read, .type=Type::CharStr},
+		cluster_mem_desc_t{.m = &T::date_code, .id = ZB_ZCL_ATTR_BASIC_DATE_CODE_ID, .a = Access::Read, .type=Type::CharStr},
+		cluster_mem_desc_t{.m = &T::power_source, .id = ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID, .a = Access::Read, .type=Type::E8},
+		cluster_mem_desc_t{.m = &T::location_id, .id = ZB_ZCL_ATTR_BASIC_LOCATION_DESCRIPTION_ID, .a = Access::RW, .type=Type::CharStr},
+		cluster_mem_desc_t{.m = &T::ph_env, .id = ZB_ZCL_ATTR_BASIC_PHYSICAL_ENVIRONMENT_ID, .a = Access::RW, .type=Type::E8},
+		cluster_mem_desc_t{.m = &T::sw_ver, .id = ZB_ZCL_ATTR_BASIC_SW_BUILD_ID, .a = Access::Read, .type=Type::CharStr}
 	>{};
 }
 
@@ -89,7 +98,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_t>()
 	using T = zb_zcl_on_off_attrs_t;
 	return cluster_struct_desc_t<
 		0,
-		cluster_mem_desc_t{.m = &T::on_off, .id = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, .a = Access::RPS, .type=ZB_ZCL_ATTR_TYPE_BOOL}
+		cluster_mem_desc_t{.m = &T::on_off, .id = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, .a = Access::RPS, .type=Type::Bool}
 	>{};
 }
 

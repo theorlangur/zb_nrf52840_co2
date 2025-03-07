@@ -1,59 +1,32 @@
 #ifndef ZB_MAIN_HPP_
 #define ZB_MAIN_HPP_
 
-extern "C"
-{
-#include <zboss_api.h>
-#include <zboss_api_addons.h>
-#include <zb_mem_config_med.h>
-#include <zigbee/zigbee_app_utils.h>
-#include <zigbee/zigbee_error_handler.h>
-#include <zb_nrf_platform.h>
-}
-
+#include "zb_types.hpp"
 #include <type_traits>
 
 namespace zb
 {
-    enum class Access: zb_uint8_t
-    {
-        None = 0,
-        Read = 0x01,
-        Write = 0x02,
-        Report = 0x04,
-        Singleton = 0x08,
-        Scene = 0x10,
-        ManuSpec = 0x20,
-        Internal = 0x40,
-
-        RW = Read | Write,
-        RWP = RW | Report,
-        RP = Read | Report,
-        RPS = RP | Report,
-    };
-
-    constexpr Access operator|(Access a1, Access a2) { return Access(zb_uint8_t(a1) | zb_uint8_t(a2)); }
-
     template<class T>
-    constexpr uint8_t TypeToTypeId()
+    constexpr Type TypeToTypeId()
     {
-        if constexpr (std::is_same_v<T,zb_uint8_t>)                return ZB_ZCL_ATTR_TYPE_U8;
-        else if constexpr (std::is_same_v<T,zb_uint16_t>)          return ZB_ZCL_ATTR_TYPE_U16;
-        else if constexpr (std::is_same_v<T,zb_uint32_t>)          return ZB_ZCL_ATTR_TYPE_U32;
-        else if constexpr (std::is_same_v<T,zb_uint64_t>)          return ZB_ZCL_ATTR_TYPE_U64;
-        else if constexpr (std::is_same_v<T,zb_int8_t>)            return ZB_ZCL_ATTR_TYPE_S8;
-        else if constexpr (std::is_same_v<T,zb_int16_t>)           return ZB_ZCL_ATTR_TYPE_S16;
-        else if constexpr (std::is_same_v<T,zb_int32_t>)           return ZB_ZCL_ATTR_TYPE_S32;
-        else if constexpr (std::is_same_v<T,zb_int64_t>)           return ZB_ZCL_ATTR_TYPE_S64;
-        else if constexpr (std::is_same_v<T,std::nullptr_t>)       return ZB_ZCL_ATTR_TYPE_NULL;
-        else if constexpr (std::is_enum_v<T> && sizeof(T) == 1)    return ZB_ZCL_ATTR_TYPE_8BIT_ENUM;
-        else if constexpr (std::is_enum_v<T> && sizeof(T) == 2)    return ZB_ZCL_ATTR_TYPE_16BIT_ENUM;
-        else if constexpr (std::is_same_v<T,float>)                return ZB_ZCL_ATTR_TYPE_SINGLE;
-        else if constexpr (std::is_same_v<T,double>)               return ZB_ZCL_ATTR_TYPE_DOUBLE;
-        else if constexpr (requires { (zb_uint8_t)T::TypeId(); })  return T::TypeId();
+        if constexpr (std::is_same_v<T,zb_uint8_t>)                return Type::U8;
+        else if constexpr (std::is_same_v<T,zb_uint16_t>)          return Type::U16;
+        else if constexpr (std::is_same_v<T,zb_uint32_t>)          return Type::U32;
+        else if constexpr (std::is_same_v<T,zb_uint64_t>)          return Type::U64;
+        else if constexpr (std::is_same_v<T,zb_int8_t>)            return Type::S8;
+        else if constexpr (std::is_same_v<T,zb_int16_t>)           return Type::S16;
+        else if constexpr (std::is_same_v<T,zb_int32_t>)           return Type::S32;
+        else if constexpr (std::is_same_v<T,zb_int64_t>)           return Type::S64;
+        else if constexpr (std::is_same_v<T,std::nullptr_t>)       return Type::Null;
+        else if constexpr (std::is_enum_v<T> && sizeof(T) == 1)    return Type::E8;
+        else if constexpr (std::is_enum_v<T> && sizeof(T) == 2)    return Type::E16;
+        else if constexpr (std::is_same_v<T,float>)                return Type::Float;
+        else if constexpr (std::is_same_v<T,double>)               return Type::Double;
+        else if constexpr (std::is_same_v<T,bool>)                 return Type::Bool;
+        else if constexpr (requires { T::TypeId(); })              return T::TypeId();
         else 
             static_assert(sizeof(T) == 0, "Unknown type");
-        return ZB_ZCL_ATTR_TYPE_NULL;
+        return Type::Invalid;
     }
 
     inline constexpr zb_zcl_attr_t g_LastAttribute{
@@ -71,7 +44,7 @@ namespace zb
         zb_uint16_t id;
         Access a;
         T *pData;
-        zb_uint8_t type = TypeToTypeId<T>();
+        Type type = TypeToTypeId<T>();
     };
 
     template<class T>
@@ -79,8 +52,8 @@ namespace zb
     {
         return {
             .id = d.id, 
-            .type = d.type, 
-            .access = (uint8_t)d.a, 
+            .type = (zb_uint8_t)d.type, 
+            .access = (zb_uint8_t)d.a, 
             .manuf_code = ZB_ZCL_NON_MANUFACTURER_SPECIFIC, 
             .data_p = d.pData
         };
@@ -127,7 +100,7 @@ namespace zb
         mem_attr_t<T, MemType> m;
         zb_uint16_t id;
         Access a;
-        zb_uint8_t type = TypeToTypeId<MemType>();
+        Type type = TypeToTypeId<MemType>();
     };
 
     template<zb_uint16_t rev, auto... ClusterMemDescriptions>
