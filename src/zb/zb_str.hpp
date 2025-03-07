@@ -64,6 +64,11 @@ namespace zb
         {
         }
 
+        constexpr ZigbeeStr():
+            name{0}
+        {
+        }
+
         operator void*() { return name; }
         size_t size() const { return N - 1; }
         std::string_view sv() const { return {name + 1, N - 1}; }
@@ -79,7 +84,7 @@ namespace zb
             return *this;
         }
 
-        static Type TypeId() { return Type::CharStr; }
+        static constexpr Type TypeId() { return Type::CharStr; }
     };
 
 
