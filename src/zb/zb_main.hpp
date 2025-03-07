@@ -99,7 +99,7 @@ namespace zb
     {
         mem_attr_t<T, MemType> m;
         zb_uint16_t id;
-        Access a;
+        Access a = Access::Read;
         Type type = TypeToTypeId<MemType>();
     };
 
