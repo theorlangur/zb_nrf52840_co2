@@ -51,6 +51,19 @@ namespace zb
     struct ZigbeeStr
     {
         char name[N];
+
+        template<size_t M, size_t...idx>
+        constexpr ZigbeeStr(std::index_sequence<idx...>, const char (&n)[M]):
+            name{ M-1, n[idx]... }
+        {
+        }
+
+        template<size_t M>
+        constexpr ZigbeeStr(const char (&n)[M]):
+            ZigbeeStr(std::make_index_sequence<M-1>(), n)
+        {
+        }
+
         operator void*() { return name; }
         size_t size() const { return N - 1; }
         std::string_view sv() const { return {name + 1, N - 1}; }
