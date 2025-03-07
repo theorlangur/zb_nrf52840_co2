@@ -2,6 +2,7 @@
 #define ZB_STD_CLUSTER_DESC_HPP_
 
 #include "zb_main.hpp"
+#include "zb_str.hpp"
 
 extern "C"
 {
@@ -50,8 +51,8 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_min_t>()
 
 struct zb_zcl_basic_names_t: zb_zcl_basic_min_t
 {
-    zb_char_t manufacturer[33];
-    zb_char_t model[33];
+    ZigbeeStr<33> manufacturer;
+    ZigbeeStr<33> model;
 };
 
 template<> constexpr auto get_cluster_description<zb_zcl_basic_names_t>()
@@ -60,8 +61,8 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_names_t>()
 	return get_cluster_description<zb_zcl_basic_min_t>() + 
         cluster_struct_desc_t<
 		0,
-		cluster_mem_desc_t{.m = &T::manufacturer, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read, .type=Type::CharStr},
-		cluster_mem_desc_t{.m = &T::model, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read, .type=Type::CharStr}
+		cluster_mem_desc_t{.m = &T::manufacturer, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, .a = Access::Read},
+		cluster_mem_desc_t{.m = &T::model, .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, .a = Access::Read}
 	>{};
 }
 
