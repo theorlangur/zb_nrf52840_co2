@@ -20,6 +20,7 @@
 #include <zephyr/drivers/gpio.h>
 
 #include "zb/zb_main.hpp"
+#include "zb/zb_std_cluster_desc.hpp"
 #include "zb_dimmable_light.h"
 
 #define RUN_STATUS_LED                  DK_LED1
@@ -122,11 +123,17 @@ typedef struct {
 /* Zigbee device application context storage. */
 static bulb_device_ctx_t dev_ctx;
 
-constexpr static  auto identAttrs =  zb::MakeAttributeList(0, zb::ADesc{.id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = zb::AttAccess::Read, .pData = &dev_ctx.identify_attr.identify_time});
 
-ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
-	identify_attr_list,
-	&dev_ctx.identify_attr.identify_time);
+constinit static auto identify_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.identify_attr);
+constinit static auto on_off_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.on_off_attr);
+constinit static auto basic_attr_list =  zb::get_attributes_from_cluster_struct(dev_ctx.basic_attr);
+
+zb::zb_zcl_basic_names_t basic_names;
+constinit static auto basic_names_attr_list =  zb::get_attributes_from_cluster_struct(basic_names);
+
+//ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
+//	identify_attr_list,
+//	&dev_ctx.identify_attr.identify_time);
 
 ZB_ZCL_DECLARE_GROUPS_ATTRIB_LIST(
 	groups_attr_list,
@@ -140,24 +147,24 @@ ZB_ZCL_DECLARE_SCENES_ATTRIB_LIST(
 	&dev_ctx.scenes_attr.scene_valid,
 	&dev_ctx.scenes_attr.name_support);
 
-ZB_ZCL_DECLARE_BASIC_ATTRIB_LIST_EXT(
-	basic_attr_list,
-	&dev_ctx.basic_attr.zcl_version,
-	&dev_ctx.basic_attr.app_version,
-	&dev_ctx.basic_attr.stack_version,
-	&dev_ctx.basic_attr.hw_version,
-	dev_ctx.basic_attr.mf_name,
-	dev_ctx.basic_attr.model_id,
-	dev_ctx.basic_attr.date_code,
-	&dev_ctx.basic_attr.power_source,
-	dev_ctx.basic_attr.location_id,
-	&dev_ctx.basic_attr.ph_env,
-	dev_ctx.basic_attr.sw_ver);
+//ZB_ZCL_DECLARE_BASIC_ATTRIB_LIST_EXT(
+//	basic_attr_list,
+//	&dev_ctx.basic_attr.zcl_version,
+//	&dev_ctx.basic_attr.app_version,
+//	&dev_ctx.basic_attr.stack_version,
+//	&dev_ctx.basic_attr.hw_version,
+//	dev_ctx.basic_attr.mf_name,
+//	dev_ctx.basic_attr.model_id,
+//	dev_ctx.basic_attr.date_code,
+//	&dev_ctx.basic_attr.power_source,
+//	dev_ctx.basic_attr.location_id,
+//	&dev_ctx.basic_attr.ph_env,
+//	dev_ctx.basic_attr.sw_ver);
 
 /* On/Off cluster attributes additions data */
-ZB_ZCL_DECLARE_ON_OFF_ATTRIB_LIST(
-	on_off_attr_list,
-	&dev_ctx.on_off_attr.on_off);
+//ZB_ZCL_DECLARE_ON_OFF_ATTRIB_LIST(
+//	on_off_attr_list,
+//	&dev_ctx.on_off_attr.on_off);
 
 ZB_ZCL_DECLARE_LEVEL_CONTROL_ATTRIB_LIST(
 	level_control_attr_list,
@@ -166,11 +173,11 @@ ZB_ZCL_DECLARE_LEVEL_CONTROL_ATTRIB_LIST(
 
 ZB_DECLARE_DIMMABLE_LIGHT_CLUSTER_LIST(
 	dimmable_light_clusters,
-	basic_attr_list,
-	identify_attr_list,
+	basic_attr_list.attributes,
+	identify_attr_list.attributes,
 	groups_attr_list,
 	scenes_attr_list,
-	on_off_attr_list,
+	on_off_attr_list.attributes,
 	level_control_attr_list);
 
 
