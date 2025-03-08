@@ -131,20 +131,19 @@ constinit static auto groups_attr_list = zb::to_attributes(dev_ctx.groups_attr);
 constinit static auto scenes_attr_list = zb::to_attributes(dev_ctx.scenes_attr);
 constinit static auto level_control_attr_list = zb::to_attributes(dev_ctx.level_control_attr);
 
-ZB_DECLARE_DIMMABLE_LIGHT_CLUSTER_LIST(
-	dimmable_light_clusters,
-	basic_attr_list.attributes,
-	identify_attr_list.attributes,
-	groups_attr_list.attributes,
-	scenes_attr_list.attributes,
-	on_off_attr_list.attributes,
-	level_control_attr_list.attributes);
-
+constinit static auto dimmable_lights = zb::to_clusters(
+		identify_attr_list
+		, on_off_attr_list
+		, basic_attr_list
+		, groups_attr_list
+		, scenes_attr_list
+		, level_control_attr_list
+		);
 
 ZB_DECLARE_DIMMABLE_LIGHT_EP(
 	dimmable_light_ep,
 	DIMMABLE_LIGHT_ENDPOINT,
-	dimmable_light_clusters);
+	dimmable_lights.clusters);
 
 ZBOSS_DECLARE_DEVICE_CTX_1_EP(
 	dimmable_light_ctx,

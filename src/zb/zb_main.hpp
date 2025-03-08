@@ -59,7 +59,10 @@ namespace zb
         };
     }
 
-    template<size_t N>
+    template<zb_uint16_t id> constexpr zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id != 0xffff, "get_cluster_init not specialized for this cluster!"); return nullptr; }
+#define DEFINE_GET_CLUSTER_INIT_FOR(cid) template<>zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return r == Role::Server ? cid##_SERVER_ROLE_INIT : (r == Role::Client ? cid##_CLIENT_ROLE_INIT : NULL); }
+
+    template<class Tag, size_t N>
     struct TAttributeList
     {
         TAttributeList(TAttributeList const&) = delete;
@@ -69,26 +72,39 @@ namespace zb
 
 
         template<class... T>
-        constexpr TAttributeList(zb_uint16_t r, ADesc<T>... d):
+        constexpr TAttributeList(ADesc<T>... d):
             attributes{
                 AttrDesc(zb::ADesc{ .id = ZB_ZCL_ATTR_GLOBAL_CLUSTER_REVISION_ID, .a = Access::Read, .pData = &rev }),
                 (AttrDesc(d), ...)
                 , g_LastAttribute
             },
-            rev(r)
+            rev(Tag::rev())
         {
         }
 
         operator zb_zcl_attr_t*() { return attributes; }
 
+        constexpr zb_zcl_cluster_desc_t desc()
+        {
+            constexpr auto ci = Tag::info();
+            return zb_zcl_cluster_desc_t{
+                .cluster_id = ci.id,
+                    .attr_count = N + 2,
+                    .attr_desc_list = attributes,
+                    .role_mask = (zb_uint8_t)ci.role,
+                    .manuf_code = ci.manuf_code,
+                    .cluster_init = get_cluster_init<Tag::info().id>(ci.role)
+            };
+        }
+
         zb_zcl_attr_t attributes[N + 2];
         zb_uint16_t rev;
     };
 
-    template<class... T>
-    constexpr auto MakeAttributeList(zb_uint16_t r, ADesc<T>... d)->TAttributeList<sizeof...(T)>
+    template<class ClusterTag, class... T>
+    constexpr auto MakeAttributeList(ClusterTag t, ADesc<T>... d)->TAttributeList<ClusterTag, sizeof...(T)>
     {
-        return TAttributeList<sizeof...(T)>(r, d...);
+        return TAttributeList<ClusterTag, sizeof...(T)>(d...);
     }
 
     template<class T, class MemType>
@@ -116,6 +132,9 @@ namespace zb
     template<cluster_info_t ci, auto... ClusterMemDescriptions>
     struct cluster_struct_desc_t
     {
+        static constexpr inline zb_uint16_t rev() { return ci.rev; }
+        static constexpr inline auto info() { return ci; }
+
         template<cluster_info_t ci2, auto... ClusterMemDescriptions2>
         friend constexpr auto operator+(cluster_struct_desc_t<ci, ClusterMemDescriptions...> lhs, cluster_struct_desc_t<ci2, ClusterMemDescriptions2...> rhs)
         {
@@ -134,7 +153,7 @@ namespace zb
     template<class T,cluster_info_t ci, auto... ClusterMemDescriptions>
     constexpr auto cluster_struct_to_attr_list(T &s, cluster_struct_desc_t<ci, ClusterMemDescriptions...>)
     {
-        return MakeAttributeList(ci.rev, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
+        return MakeAttributeList(cluster_struct_desc_t<ci, ClusterMemDescriptions...>{}, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
     }
 
     template<class zb_struct>
@@ -143,10 +162,32 @@ namespace zb
     template<class ZbS>
     constexpr auto to_attributes(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
 
-    template<zb_uint16_t id> zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id != 0xffff, "get_cluster_init not specialized for this cluster!"); return nullptr; }
 
-#define DEFINE_GET_CLUSTER_INIT_FOR(cid) template<>zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return r == Role::Server ? cid##_SERVER_ROLE_INIT : (r == Role::Client ? cid##_CLIENT_ROLE_INIT : NULL); }
+    template<size_t N>
+    struct TClusterList
+    {
+        TClusterList(TClusterList const&) = delete;
+        TClusterList(TClusterList &&) = delete;
+        void operator=(TClusterList const&) = delete;
+        void operator=(TClusterList &&) = delete;
 
+
+        template<class... T>
+        constexpr TClusterList(T&... d):
+            clusters{
+                (d.desc(), ...)
+            }
+        {
+        }
+
+        zb_zcl_cluster_desc_t clusters[N];
+    };
+
+    template<class... ClusterAttributesDesc>
+    constexpr auto to_clusters(ClusterAttributesDesc&... c) -> TClusterList<sizeof...(ClusterAttributesDesc)>
+    {
+        return {c...};
+    }
 }
 
 #endif
