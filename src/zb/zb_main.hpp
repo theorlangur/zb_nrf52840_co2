@@ -103,15 +103,25 @@ namespace zb
         Type type = TypeToTypeId<MemType>();
     };
 
-    template<zb_uint16_t rev, auto... ClusterMemDescriptions>
+    struct cluster_info_t
+    {
+        zb_uint16_t id;
+        zb_uint16_t rev = 0;
+        Role        role = Role::Server;
+        zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
+
+        constexpr bool operator==(cluster_info_t const&) const = default;
+    };
+
+    template<cluster_info_t ci, auto... ClusterMemDescriptions>
     struct cluster_struct_desc_t
     {
-        template<zb_uint16_t rev2, auto... ClusterMemDescriptions2>
-        friend constexpr auto operator+(cluster_struct_desc_t<rev, ClusterMemDescriptions...> lhs, cluster_struct_desc_t<rev2, ClusterMemDescriptions2...> rhs)
+        template<cluster_info_t ci2, auto... ClusterMemDescriptions2>
+        friend constexpr auto operator+(cluster_struct_desc_t<ci, ClusterMemDescriptions...> lhs, cluster_struct_desc_t<ci2, ClusterMemDescriptions2...> rhs)
         {
-            static_assert(rev == rev2, "Must be the same revision");
+            static_assert(ci == ci2, "Must be the same revision");
             return cluster_struct_desc_t<
-                rev,
+                ci,
                 ClusterMemDescriptions...,
                 ClusterMemDescriptions2...
                 >{};
@@ -121,10 +131,10 @@ namespace zb
     template<class T, class DestT, class MemType> requires std::is_base_of_v<DestT, T>
     constexpr ADesc<MemType> cluster_mem_to_attr_desc(T& s, cluster_mem_desc_t<DestT,MemType> d) { return {.id = d.id, .a = d.a, .pData = &(s.*d.m), .type = d.type}; }
 
-    template<class T,zb_uint16_t rev, auto... ClusterMemDescriptions>
-    constexpr auto cluster_struct_to_attr_list(T &s, cluster_struct_desc_t<rev, ClusterMemDescriptions...>)
+    template<class T,cluster_info_t ci, auto... ClusterMemDescriptions>
+    constexpr auto cluster_struct_to_attr_list(T &s, cluster_struct_desc_t<ci, ClusterMemDescriptions...>)
     {
-        return MakeAttributeList(rev, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
+        return MakeAttributeList(ci.rev, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
     }
 
     template<class zb_struct>
@@ -132,6 +142,11 @@ namespace zb
 
     template<class ZbS>
     constexpr auto to_attributes(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
+
+    template<zb_uint16_t id> zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id != 0xffff, "get_cluster_init not specialized for this cluster!"); return nullptr; }
+
+#define DEFINE_GET_CLUSTER_INIT_FOR(cid) template<>zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return r == Role::Server ? cid##_SERVER_ROLE_INIT : (r == Role::Client ? cid##_CLIENT_ROLE_INIT : NULL); }
+
 }
 
 #endif

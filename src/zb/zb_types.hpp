@@ -86,6 +86,14 @@ namespace zb
         Custom32Array = ZB_ZCL_ATTR_TYPE_CUSTOM_32ARRAY,
         Invalid       = ZB_ZCL_ATTR_TYPE_INVALID
     };
+
+    enum class Role: zb_uint8_t
+    {
+        Invalid = 0x00,
+        Server = 0x01,
+        Client = 0x02,
+        Any = Server | Client
+    };
 }
 
 #endif

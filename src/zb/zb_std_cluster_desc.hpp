@@ -43,7 +43,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_min_t>()
 {
 	using T = zb_zcl_basic_min_t;
 	return cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_BASIC},
 		cluster_mem_desc_t{.m = &T::zcl_version , .id = ZB_ZCL_ATTR_BASIC_ZCL_VERSION_ID },
 		cluster_mem_desc_t{.m = &T::power_source, .id = ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID}
 	>{};
@@ -60,7 +60,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_names_t>()
 	using T = zb_zcl_basic_names_t;
 	return get_cluster_description<zb_zcl_basic_min_t>() + 
         cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_BASIC},
 		cluster_mem_desc_t{.m = &T::manufacturer, .id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID},
 		cluster_mem_desc_t{.m = &T::model       , .id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID }
 	>{};
@@ -70,7 +70,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_basic_attrs_ext_t>()
 {
 	using T = zb_zcl_basic_attrs_ext_t;
 	return cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_BASIC},
 		cluster_mem_desc_t{.m = &T::zcl_version,   .id = ZB_ZCL_ATTR_BASIC_ZCL_VERSION_ID},
 		cluster_mem_desc_t{.m = &T::app_version,   .id = ZB_ZCL_ATTR_BASIC_APPLICATION_VERSION_ID},
 		cluster_mem_desc_t{.m = &T::stack_version, .id = ZB_ZCL_ATTR_BASIC_STACK_VERSION_ID},
@@ -89,7 +89,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_identify_attrs_t>()
 {
 	using T = zb_zcl_identify_attrs_t;
 	return cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_IDENTIFY},
 		cluster_mem_desc_t{.m = &T::identify_time, .id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = Access::RW}
 	>{};
 }
@@ -98,7 +98,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_t>()
 {
 	using T = zb_zcl_on_off_attrs_t;
 	return cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_ON_OFF},
 		cluster_mem_desc_t{.m = &T::on_off, .id = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, .a = Access::RPS, .type=Type::Bool}
 	>{};
 }
@@ -107,7 +107,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_groups_attrs_t>()
 {
 	using T = zb_zcl_groups_attrs_t;
 	return cluster_struct_desc_t<
-		0,
+		{.id = ZB_ZCL_CLUSTER_ID_GROUPS},
 		cluster_mem_desc_t{.m = &T::name_support, .id = ZB_ZCL_ATTR_GROUPS_NAME_SUPPORT_ID, .a = Access::Read, .type=Type::Map8}
 	>{};
 }
@@ -116,7 +116,7 @@ template<> constexpr auto get_cluster_description<zb_zcl_scenes_attrs_t>()
 {
 	using T = zb_zcl_scenes_attrs_t;
 	return cluster_struct_desc_t<
-		0
+		{.id = ZB_ZCL_CLUSTER_ID_SCENES}
 		, cluster_mem_desc_t{.m = &T::scene_count,   .id = ZB_ZCL_ATTR_SCENES_SCENE_COUNT_ID,   .a = Access::Read}
 		, cluster_mem_desc_t{.m = &T::current_scene, .id = ZB_ZCL_ATTR_SCENES_CURRENT_SCENE_ID, .a = Access::Read}
 		, cluster_mem_desc_t{.m = &T::scene_valid,   .id = ZB_ZCL_ATTR_SCENES_SCENE_VALID_ID,   .a = Access::Read, .type=Type::Bool}
@@ -129,11 +129,12 @@ template<> constexpr auto get_cluster_description<zb_zcl_level_control_attrs_t>(
 {
 	using T = zb_zcl_level_control_attrs_t;
 	return cluster_struct_desc_t<
-		0
+		{.id = ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL}
 		, cluster_mem_desc_t{.m = &T::current_level, .id = ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID, .a = Access::RPS}
 		, cluster_mem_desc_t{.m = &T::remaining_time, .id = ZB_ZCL_ATTR_LEVEL_CONTROL_REMAINING_TIME_ID, .a = Access::Read}
 	>{};
 }
+
 
 }
 
