@@ -103,6 +103,38 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_t>()
 	>{};
 }
 
+template<> constexpr auto get_cluster_description<zb_zcl_groups_attrs_t>()
+{
+	using T = zb_zcl_groups_attrs_t;
+	return cluster_struct_desc_t<
+		0,
+		cluster_mem_desc_t{.m = &T::name_support, .id = ZB_ZCL_ATTR_GROUPS_NAME_SUPPORT_ID, .a = Access::Read, .type=Type::Map8}
+	>{};
+}
+
+template<> constexpr auto get_cluster_description<zb_zcl_scenes_attrs_t>()
+{
+	using T = zb_zcl_scenes_attrs_t;
+	return cluster_struct_desc_t<
+		0
+		, cluster_mem_desc_t{.m = &T::scene_count,   .id = ZB_ZCL_ATTR_SCENES_SCENE_COUNT_ID,   .a = Access::Read}
+		, cluster_mem_desc_t{.m = &T::current_scene, .id = ZB_ZCL_ATTR_SCENES_CURRENT_SCENE_ID, .a = Access::Read}
+		, cluster_mem_desc_t{.m = &T::scene_valid,   .id = ZB_ZCL_ATTR_SCENES_SCENE_VALID_ID,   .a = Access::Read, .type=Type::Bool}
+		, cluster_mem_desc_t{.m = &T::name_support,  .id = ZB_ZCL_ATTR_SCENES_NAME_SUPPORT_ID,  .a = Access::Read, .type=Type::Map8}
+		, cluster_mem_desc_t{.m = &T::current_group, .id = ZB_ZCL_ATTR_SCENES_CURRENT_GROUP_ID, .a = Access::Read}
+	>{};
+}
+
+template<> constexpr auto get_cluster_description<zb_zcl_level_control_attrs_t>()
+{
+	using T = zb_zcl_level_control_attrs_t;
+	return cluster_struct_desc_t<
+		0
+		, cluster_mem_desc_t{.m = &T::current_level, .id = ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID, .a = Access::RPS}
+		, cluster_mem_desc_t{.m = &T::remaining_time, .id = ZB_ZCL_ATTR_LEVEL_CONTROL_REMAINING_TIME_ID, .a = Access::Read}
+	>{};
+}
+
 }
 
 #endif

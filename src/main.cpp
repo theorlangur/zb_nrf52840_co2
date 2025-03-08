@@ -127,58 +127,18 @@ static bulb_device_ctx_t dev_ctx;
 constinit static auto identify_attr_list =  zb::to_attributes(dev_ctx.identify_attr);
 constinit static auto on_off_attr_list =  zb::to_attributes(dev_ctx.on_off_attr);
 constinit static auto basic_attr_list =  zb::to_attributes(dev_ctx.basic_attr);
-
-zb::zb_zcl_basic_names_t basic_names;
-constinit static auto basic_names_attr_list =  zb::to_attributes(basic_names);
-
-//ZB_ZCL_DECLARE_IDENTIFY_ATTRIB_LIST(
-//	identify_attr_list,
-//	&dev_ctx.identify_attr.identify_time);
-
-ZB_ZCL_DECLARE_GROUPS_ATTRIB_LIST(
-	groups_attr_list,
-	&dev_ctx.groups_attr.name_support);
-
-ZB_ZCL_DECLARE_SCENES_ATTRIB_LIST(
-	scenes_attr_list,
-	&dev_ctx.scenes_attr.scene_count,
-	&dev_ctx.scenes_attr.current_scene,
-	&dev_ctx.scenes_attr.current_group,
-	&dev_ctx.scenes_attr.scene_valid,
-	&dev_ctx.scenes_attr.name_support);
-
-//ZB_ZCL_DECLARE_BASIC_ATTRIB_LIST_EXT(
-//	basic_attr_list,
-//	&dev_ctx.basic_attr.zcl_version,
-//	&dev_ctx.basic_attr.app_version,
-//	&dev_ctx.basic_attr.stack_version,
-//	&dev_ctx.basic_attr.hw_version,
-//	dev_ctx.basic_attr.mf_name,
-//	dev_ctx.basic_attr.model_id,
-//	dev_ctx.basic_attr.date_code,
-//	&dev_ctx.basic_attr.power_source,
-//	dev_ctx.basic_attr.location_id,
-//	&dev_ctx.basic_attr.ph_env,
-//	dev_ctx.basic_attr.sw_ver);
-
-/* On/Off cluster attributes additions data */
-//ZB_ZCL_DECLARE_ON_OFF_ATTRIB_LIST(
-//	on_off_attr_list,
-//	&dev_ctx.on_off_attr.on_off);
-
-ZB_ZCL_DECLARE_LEVEL_CONTROL_ATTRIB_LIST(
-	level_control_attr_list,
-	&dev_ctx.level_control_attr.current_level,
-	&dev_ctx.level_control_attr.remaining_time);
+constinit static auto groups_attr_list = zb::to_attributes(dev_ctx.groups_attr);
+constinit static auto scenes_attr_list = zb::to_attributes(dev_ctx.scenes_attr);
+constinit static auto level_control_attr_list = zb::to_attributes(dev_ctx.level_control_attr);
 
 ZB_DECLARE_DIMMABLE_LIGHT_CLUSTER_LIST(
 	dimmable_light_clusters,
 	basic_attr_list.attributes,
 	identify_attr_list.attributes,
-	groups_attr_list,
-	scenes_attr_list,
+	groups_attr_list.attributes,
+	scenes_attr_list.attributes,
 	on_off_attr_list.attributes,
-	level_control_attr_list);
+	level_control_attr_list.attributes);
 
 
 ZB_DECLARE_DIMMABLE_LIGHT_EP(
