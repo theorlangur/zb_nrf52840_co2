@@ -84,6 +84,9 @@ namespace zb
 
         operator zb_zcl_attr_t*() { return attributes; }
 
+        constexpr static bool is_role(Role r) { return Tag::info().role == r; }
+        constexpr static size_t attributes_with_access(Access r) { return Tag::count_members_with_access(r); }
+
         constexpr zb_zcl_cluster_desc_t desc()
         {
             constexpr auto ci = Tag::info();
@@ -117,6 +120,8 @@ namespace zb
         zb_uint16_t id;
         Access a = Access::Read;
         Type type = TypeToTypeId<MemType>();
+
+        constexpr inline bool has_access(Access _a) const { return a & _a; } 
     };
 
     struct cluster_info_t
@@ -134,6 +139,7 @@ namespace zb
     {
         static constexpr inline zb_uint16_t rev() { return ci.rev; }
         static constexpr inline auto info() { return ci; }
+        static constexpr inline size_t count_members_with_access(Access a) { return ((size_t)ClusterMemDescriptions.has_access(a) + ... + 0); }
 
         template<cluster_info_t ci2, auto... ClusterMemDescriptions2>
         friend constexpr auto operator+(cluster_struct_desc_t<ci, ClusterMemDescriptions...> lhs, cluster_struct_desc_t<ci2, ClusterMemDescriptions2...> rhs)
@@ -176,11 +182,19 @@ namespace zb
         constexpr TClusterList(T&... d):
             clusters{
                 (d.desc(), ...)
-            }
+            },
+            reporting_attributes((d.attributes_with_access(Access::Report) + ... + 0)),
+            cvc_level_ctrl_attributes(((d.desc().cluster_id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL ? d.attributes_with_access(Access::Report) : 0) + ... + 0)),
+            server_cluster_count((d.is_role(Role::Server) + ... + 0)),
+            client_cluster_count((d.is_role(Role::Client) + ... + 0))
         {
         }
 
         zb_zcl_cluster_desc_t clusters[N];
+        size_t reporting_attributes;
+        size_t cvc_level_ctrl_attributes;
+        zb_uint8_t server_cluster_count;
+        zb_uint8_t client_cluster_count;
     };
 
     template<class... ClusterAttributesDesc>

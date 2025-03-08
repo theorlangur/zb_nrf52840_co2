@@ -25,6 +25,7 @@ namespace zb
         RPS = RP | Report,
     };
     constexpr Access operator|(Access a1, Access a2) { return Access(zb_uint8_t(a1) | zb_uint8_t(a2)); }
+    constexpr bool operator&(Access a1, Access a2) { return (zb_uint8_t(a1) & zb_uint8_t(a2)) != 0; }
 
     enum class Type: zb_uint8_t
     {
