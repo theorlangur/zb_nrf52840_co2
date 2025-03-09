@@ -259,7 +259,7 @@ namespace zb
     template<size_t N>
     struct Device
     {
-        template<class... Clusters>
+        template<class... Clusters> requires (sizeof...(Clusters) == N)
         constexpr Device(EPDesc<Clusters>&...eps):
             endpoints{&eps.ep...},
             ctx{.ep_count = N, .ep_desc_list = endpoints}
