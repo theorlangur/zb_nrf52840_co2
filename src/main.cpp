@@ -261,13 +261,7 @@ static void level_control_set_value(zb_uint16_t new_level)
 {
 	LOG_INF("Set level value: %i", new_level);
 
-	ZB_ZCL_SET_ATTRIBUTE(
-		DIMMABLE_LIGHT_ENDPOINT,
-		ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL,
-		ZB_ZCL_CLUSTER_SERVER_ROLE,
-		ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID,
-		(zb_uint8_t *)&new_level,
-		ZB_FALSE);
+	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = new_level;
 
 	light_bulb_set_brightness(new_level);
 }
@@ -280,13 +274,7 @@ static void on_off_set_value(zb_bool_t on)
 {
 	LOG_INF("Set ON/OFF value: %i", on);
 
-	ZB_ZCL_SET_ATTRIBUTE(
-		DIMMABLE_LIGHT_ENDPOINT,
-		ZB_ZCL_CLUSTER_ID_ON_OFF,
-		ZB_ZCL_CLUSTER_SERVER_ROLE,
-		ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID,
-		(zb_uint8_t *)&on,
-		ZB_FALSE);
+	dim_ep.attr<&zb_zcl_on_off_attrs_t::on_off>() = on;
 
 	if (on) {
 		light_bulb_set_brightness(dev_ctx.level_control_attr.current_level);
@@ -383,21 +371,8 @@ static void bulb_clusters_attr_init(void)
 	dev_ctx.level_control_attr.remaining_time =
 		ZB_ZCL_LEVEL_CONTROL_REMAINING_TIME_DEFAULT_VALUE;
 
-	ZB_ZCL_SET_ATTRIBUTE(
-		DIMMABLE_LIGHT_ENDPOINT,
-		ZB_ZCL_CLUSTER_ID_ON_OFF,
-		ZB_ZCL_CLUSTER_SERVER_ROLE,
-		ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID,
-		(zb_uint8_t *)&dev_ctx.on_off_attr.on_off,
-		ZB_FALSE);
-
-	ZB_ZCL_SET_ATTRIBUTE(
-		DIMMABLE_LIGHT_ENDPOINT,
-		ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL,
-		ZB_ZCL_CLUSTER_SERVER_ROLE,
-		ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID,
-		(zb_uint8_t *)&dev_ctx.level_control_attr.current_level,
-		ZB_FALSE);
+	dim_ep.attr<&zb_zcl_on_off_attrs_t::on_off>() = dev_ctx.on_off_attr.on_off;
+	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = dev_ctx.level_control_attr.current_level;
 }
 
 /**@brief Callback function for handling ZCL commands.
