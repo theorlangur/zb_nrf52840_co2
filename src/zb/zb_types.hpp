@@ -1,10 +1,10 @@
 #ifndef ZB_TYPES_HPP_
 #define ZB_TYPES_HPP_
 
-extern "C"
-{
+extern "C" {
 #include <zboss_api.h>
 }
+#include <type_traits>
 
 namespace zb
 {
@@ -95,6 +95,30 @@ namespace zb
         Client = 0x02,
         Any = Server | Client
     };
+
+    template<class T>
+    constexpr Type TypeToTypeId()
+    {
+        if constexpr (std::is_same_v<T,zb_uint8_t>)                return Type::U8;
+        else if constexpr (std::is_same_v<T,zb_uint16_t>)          return Type::U16;
+        else if constexpr (std::is_same_v<T,zb_uint32_t>)          return Type::U32;
+        else if constexpr (std::is_same_v<T,zb_uint64_t>)          return Type::U64;
+        else if constexpr (std::is_same_v<T,zb_int8_t>)            return Type::S8;
+        else if constexpr (std::is_same_v<T,zb_int16_t>)           return Type::S16;
+        else if constexpr (std::is_same_v<T,zb_int32_t>)           return Type::S32;
+        else if constexpr (std::is_same_v<T,zb_int64_t>)           return Type::S64;
+        else if constexpr (std::is_same_v<T,std::nullptr_t>)       return Type::Null;
+        else if constexpr (std::is_enum_v<T> && sizeof(T) == 1)    return Type::E8;
+        else if constexpr (std::is_enum_v<T> && sizeof(T) == 2)    return Type::E16;
+        else if constexpr (std::is_same_v<T,float>)                return Type::Float;
+        else if constexpr (std::is_same_v<T,double>)               return Type::Double;
+        else if constexpr (std::is_same_v<T,bool>)                 return Type::Bool;
+        else if constexpr (requires { T::TypeId(); })              return T::TypeId();
+        else 
+            static_assert(sizeof(T) == 0, "Unknown type");
+        return Type::Invalid;
+    }
+
 }
 
 #endif

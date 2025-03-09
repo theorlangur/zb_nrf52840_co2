@@ -140,14 +140,8 @@ constinit static auto dimmable_lights = zb::to_clusters(
 		, level_control_attr_list
 		);
 
-ZB_DECLARE_DIMMABLE_LIGHT_EP(
-	dimmable_light_ep,
-	DIMMABLE_LIGHT_ENDPOINT,
-	dimmable_lights.clusters);
-
-ZBOSS_DECLARE_DEVICE_CTX_1_EP(
-	dimmable_light_ctx,
-	dimmable_light_ep);
+constinit static auto dim_ep = zb::configure_ep(DIMMABLE_LIGHT_ENDPOINT, ZB_DIMMABLE_LIGHT_DEVICE_ID, ZB_DEVICE_VER_DIMMABLE_LIGHT, dimmable_lights);
+constinit static auto dimmable_light_ctx = zb::configure_device(dim_ep);
 
 /**@brief Starts identifying the device.
  *
@@ -515,7 +509,7 @@ int main(void)
 	ZB_ZCL_REGISTER_DEVICE_CB(zcl_device_cb);
 
 	/* Register dimmer switch device context (endpoints). */
-	ZB_AF_REGISTER_DEVICE_CTX(&dimmable_light_ctx);
+	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
 
 	bulb_clusters_attr_init();
 	level_control_set_value(dev_ctx.level_control_attr.current_level);

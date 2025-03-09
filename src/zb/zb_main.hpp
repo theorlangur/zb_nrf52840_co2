@@ -2,33 +2,9 @@
 #define ZB_MAIN_HPP_
 
 #include "zb_types.hpp"
-#include <type_traits>
 
 namespace zb
 {
-    template<class T>
-    constexpr Type TypeToTypeId()
-    {
-        if constexpr (std::is_same_v<T,zb_uint8_t>)                return Type::U8;
-        else if constexpr (std::is_same_v<T,zb_uint16_t>)          return Type::U16;
-        else if constexpr (std::is_same_v<T,zb_uint32_t>)          return Type::U32;
-        else if constexpr (std::is_same_v<T,zb_uint64_t>)          return Type::U64;
-        else if constexpr (std::is_same_v<T,zb_int8_t>)            return Type::S8;
-        else if constexpr (std::is_same_v<T,zb_int16_t>)           return Type::S16;
-        else if constexpr (std::is_same_v<T,zb_int32_t>)           return Type::S32;
-        else if constexpr (std::is_same_v<T,zb_int64_t>)           return Type::S64;
-        else if constexpr (std::is_same_v<T,std::nullptr_t>)       return Type::Null;
-        else if constexpr (std::is_enum_v<T> && sizeof(T) == 1)    return Type::E8;
-        else if constexpr (std::is_enum_v<T> && sizeof(T) == 2)    return Type::E16;
-        else if constexpr (std::is_same_v<T,float>)                return Type::Float;
-        else if constexpr (std::is_same_v<T,double>)               return Type::Double;
-        else if constexpr (std::is_same_v<T,bool>)                 return Type::Bool;
-        else if constexpr (requires { T::TypeId(); })              return T::TypeId();
-        else 
-            static_assert(sizeof(T) == 0, "Unknown type");
-        return Type::Invalid;
-    }
-
     inline constexpr zb_zcl_attr_t g_LastAttribute{
         .id = ZB_ZCL_NULL_ID,
         .type = ZB_ZCL_ATTR_TYPE_NULL,
@@ -59,7 +35,7 @@ namespace zb
         };
     }
 
-    template<zb_uint16_t id> constexpr zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id == 0xffff, "get_cluster_init not specialized for this cluster!"); return nullptr; }
+    template<zb_uint16_t id> constexpr zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id >= 0xfc00, "get_cluster_init not specialized for this cluster!"); return nullptr; }
 #define DEFINE_GET_CLUSTER_INIT_FOR(cid) template<> constexpr zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return r == Role::Server ? cid##_SERVER_ROLE_INIT : (r == Role::Client ? cid##_CLIENT_ROLE_INIT : NULL); }
 
     template<class Tag, size_t N>
@@ -86,6 +62,7 @@ namespace zb
 
         constexpr static bool is_role(Role r) { return Tag::info().role == r; }
         constexpr static size_t attributes_with_access(Access r) { return Tag::count_members_with_access(r); }
+        constexpr static auto info() { return Tag::info(); }
 
         constexpr zb_zcl_cluster_desc_t desc()
         {
@@ -169,38 +146,139 @@ namespace zb
     constexpr auto to_attributes(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
 
 
-    template<size_t N>
+    template<class... T>
     struct TClusterList
     {
+        static constexpr size_t N = sizeof...(T);
+
         TClusterList(TClusterList const&) = delete;
         TClusterList(TClusterList &&) = delete;
         void operator=(TClusterList const&) = delete;
         void operator=(TClusterList &&) = delete;
 
+        static constexpr size_t reporting_attributes_count() { return (T::attributes_with_access(Access::Report) + ... + 0); }
+        static constexpr size_t cvc_level_ctrl_attributes_count() { return ((T::info().id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL ? T::attributes_with_access(Access::Report) : 0) + ... + 0); }
+        static constexpr size_t server_cluster_count() { return (T::is_role(Role::Server) + ... + 0); }
+        static constexpr size_t client_cluster_count() { return (T::is_role(Role::Client) + ... + 0); }
 
-        template<class... T>
         constexpr TClusterList(T&... d):
             clusters{
                 (d.desc(), ...)
             },
-            reporting_attributes((d.attributes_with_access(Access::Report) + ... + 0)),
-            cvc_level_ctrl_attributes(((d.desc().cluster_id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL ? d.attributes_with_access(Access::Report) : 0) + ... + 0)),
-            server_cluster_count((d.is_role(Role::Server) + ... + 0)),
-            client_cluster_count((d.is_role(Role::Client) + ... + 0))
+            reporting_attributes(reporting_attributes_count()),
+            cvc_level_ctrl_attributes(cvc_level_ctrl_attributes_count()),
+            server_count(server_cluster_count()),
+            client_count(client_cluster_count())
         {
         }
 
         zb_zcl_cluster_desc_t clusters[N];
         size_t reporting_attributes;
         size_t cvc_level_ctrl_attributes;
-        zb_uint8_t server_cluster_count;
-        zb_uint8_t client_cluster_count;
+        zb_uint8_t server_count;
+        zb_uint8_t client_count;
     };
 
     template<class... ClusterAttributesDesc>
-    constexpr auto to_clusters(ClusterAttributesDesc&... c) -> TClusterList<sizeof...(ClusterAttributesDesc)>
+    constexpr auto to_clusters(ClusterAttributesDesc&... c) -> TClusterList<ClusterAttributesDesc...>
     {
         return {c...};
+    }
+
+    struct zb_af_simple_desc_base
+    {                                                                                       
+        zb_uint8_t    endpoint;                 /* Endpoint */                                
+        zb_uint16_t   app_profile_id;           /* Application profile identifier */          
+        zb_uint16_t   app_device_id;            /* Application device identifier */           
+        zb_bitfield_t app_device_version:4;     /* Application device version */              
+        zb_bitfield_t reserved:4;               /* Reserved */                                
+        zb_uint8_t    app_input_cluster_count;  /* Application input cluster count */         
+        zb_uint8_t    app_output_cluster_count; /* Application output cluster count */        
+        /* Application input and output cluster list */                                       
+        //zb_uint16_t   app_cluster_list[(in_clusters_count) + (out_clusters_count)];           
+    } ZB_PACKED_STRUCT;                                                                      
+
+    template<size_t ServerCount, size_t ClientCount>
+    struct TSimpleDesc: zb_af_simple_desc_1_1_t
+    {
+        zb_uint16_t app_cluster_list_ext[(ServerCount + ClientCount) - 2];
+    } ZB_PACKED_STRUCT;
+
+    template<class Clusters>
+    struct EPDesc
+    {
+        using SimpleDesc = TSimpleDesc<Clusters::server_cluster_count(), Clusters::client_cluster_count()>;
+
+        template<class T1, class T2, class... T> requires std::is_same_v<TClusterList<T1, T2, T...>, Clusters>
+        constexpr EPDesc(zb_uint8_t ep, zb_uint16_t dev_id, zb_uint8_t dev_ver, TClusterList<T1, T2, T...> &clusters):
+            simple_desc{ 
+                {
+                    .endpoint = ep, 
+                    .app_profile_id = ZB_AF_HA_PROFILE_ID, 
+                    .app_device_id = dev_id,
+                    .app_device_version = dev_ver,
+                    .reserved = 0,
+                    .app_input_cluster_count = Clusters::server_cluster_count(),
+                    .app_output_cluster_count = Clusters::client_cluster_count(),
+                    .app_cluster_list = {T1::info().id, T2::info().id}
+                },
+                { T::info().id... }//rest
+            },
+            rep_ctx{},
+            lev_ctrl_ctx{},
+            ep{
+                .ep_id = ep,
+                .profile_id = ZB_AF_HA_PROFILE_ID,
+                .device_handler = nullptr,
+                .identify_handler = nullptr,
+                .reserved_size = 0,
+                .reserved_ptr = nullptr,
+                .cluster_count = sizeof...(T),
+                .cluster_desc_list = clusters.clusters,
+                .simple_desc = &simple_desc,
+                .rep_info_count = Clusters::reporting_attributes_count(),
+                .reporting_info = rep_ctx,
+                .cvc_alarm_count = Clusters::cvc_level_ctrl_attributes_count(),
+                .cvc_alarm_info = lev_ctrl_ctx
+            }
+        {
+        }
+
+        SimpleDesc simple_desc;
+        zb_zcl_reporting_info_t rep_ctx[Clusters::reporting_attributes_count()];
+        zb_zcl_cvc_alarm_variables_t lev_ctrl_ctx[Clusters::cvc_level_ctrl_attributes_count()];
+        zb_af_endpoint_desc_t ep;
+    };
+
+    template<class... T>
+    constexpr auto configure_ep(zb_uint8_t ep, zb_uint16_t dev_id, zb_uint8_t dev_ver, TClusterList<T...> &clusters) -> EPDesc<TClusterList<T...>>
+    {
+        return {ep, dev_id, dev_ver, clusters};
+    }
+
+    template<size_t N>
+    struct Device
+    {
+        template<class... Clusters>
+        constexpr Device(EPDesc<Clusters>&...eps):
+            endpoints{&eps.ep...},
+            ctx{.ep_count = N, .ep_desc_list = endpoints}
+        {
+        }
+
+        operator zb_af_device_ctx_t*() { return &ctx; }
+
+        zb_af_endpoint_desc_t *endpoints[N];
+        zb_af_device_ctx_t ctx;
+    };
+
+    template<class... Clusters>
+    Device(EPDesc<Clusters>&...eps) -> Device<sizeof...(Clusters)>;
+
+    template<class... Clusters>
+    constexpr auto configure_device(EPDesc<Clusters>&...eps)
+    {
+        return Device{eps...};
     }
 }
 
