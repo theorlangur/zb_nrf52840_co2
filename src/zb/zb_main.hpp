@@ -35,12 +35,17 @@ namespace zb
         };
     }
 
+    template<class zb_struct>
+    constexpr inline auto get_cluster_description() { static_assert(sizeof(zb_struct) == 0, "Cluster description not found for type"); }
+
     template<zb_uint16_t id> constexpr zb_zcl_cluster_init_t get_cluster_init(Role r) { static_assert(id >= 0xfc00, "get_cluster_init not specialized for this cluster!"); return nullptr; }
 #define DEFINE_GET_CLUSTER_INIT_FOR(cid) template<> constexpr zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return r == Role::Server ? cid##_SERVER_ROLE_INIT : (r == Role::Client ? cid##_CLIENT_ROLE_INIT : NULL); }
 
-    template<class Tag, size_t N>
+    template<class StructTag, size_t N>
     struct TAttributeList
     {
+        using Tag = decltype(get_cluster_description<StructTag>());
+
         TAttributeList(TAttributeList const&) = delete;
         TAttributeList(TAttributeList &&) = delete;
         void operator=(TAttributeList const&) = delete;
@@ -82,7 +87,7 @@ namespace zb
     };
 
     template<class ClusterTag, class... T>
-    constexpr auto MakeAttributeList(ClusterTag t, ADesc<T>... d)->TAttributeList<ClusterTag, sizeof...(T)>
+    constexpr auto MakeAttributeList(ClusterTag *t, ADesc<T>... d)->TAttributeList<ClusterTag, sizeof...(T)>
     {
         return TAttributeList<ClusterTag, sizeof...(T)>(d...);
     }
@@ -93,12 +98,34 @@ namespace zb
     template<class T, class MemType>
     struct cluster_mem_desc_t
     {
+        using MemT = MemType;
+
         mem_attr_t<T, MemType> m;
         zb_uint16_t id;
         Access a = Access::Read;
         Type type = TypeToTypeId<MemType>();
 
         constexpr inline bool has_access(Access _a) const { return a & _a; } 
+    };
+
+    template<auto memPtr, auto...ClusterMemDescriptions>
+    struct find_cluster_mem_desc_t;
+
+    template<auto memPtr, auto MemDesc, auto...ClusterMemDescriptions> requires (MemDesc.m == memPtr)
+    struct find_cluster_mem_desc_t<memPtr, MemDesc, ClusterMemDescriptions...>
+    {
+        static constexpr auto mem_desc() { return MemDesc; }
+    };
+
+    template<auto memPtr, auto MemDesc, auto...ClusterMemDescriptions> requires (MemDesc.m != memPtr)
+    struct find_cluster_mem_desc_t<memPtr, MemDesc, ClusterMemDescriptions...>: find_cluster_mem_desc_t<memPtr, ClusterMemDescriptions...>
+    {
+    };
+
+    template<auto memPtr>
+    struct find_cluster_mem_desc_t<memPtr>
+    {
+        static constexpr auto mem_desc() { static_assert(sizeof(memPtr) == 0, "Pointer to a member is not an attribute"); }
     };
 
     struct cluster_info_t
@@ -118,6 +145,9 @@ namespace zb
         static constexpr inline auto info() { return ci; }
         static constexpr inline size_t count_members_with_access(Access a) { return ((size_t)ClusterMemDescriptions.has_access(a) + ... + 0); }
 
+        template<auto memPtr>
+        static constexpr inline auto get_member_description() { return find_cluster_mem_desc_t<memPtr, ClusterMemDescriptions...>::mem_desc(); }
+
         template<cluster_info_t ci2, auto... ClusterMemDescriptions2>
         friend constexpr auto operator+(cluster_struct_desc_t<ci, ClusterMemDescriptions...> lhs, cluster_struct_desc_t<ci2, ClusterMemDescriptions2...> rhs)
         {
@@ -136,15 +166,11 @@ namespace zb
     template<class T,cluster_info_t ci, auto... ClusterMemDescriptions>
     constexpr auto cluster_struct_to_attr_list(T &s, cluster_struct_desc_t<ci, ClusterMemDescriptions...>)
     {
-        return MakeAttributeList(cluster_struct_desc_t<ci, ClusterMemDescriptions...>{}, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
+        return MakeAttributeList(&s, cluster_mem_to_attr_desc(s, ClusterMemDescriptions)...);
     }
-
-    template<class zb_struct>
-    constexpr auto get_cluster_description();
 
     template<class ZbS>
     constexpr auto to_attributes(ZbS &s) { return cluster_struct_to_attr_list(s, get_cluster_description<ZbS>()); }
-
 
     template<class... T>
     struct TClusterList
@@ -160,6 +186,7 @@ namespace zb
         static constexpr size_t cvc_level_ctrl_attributes_count() { return ((T::info().id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL ? T::attributes_with_access(Access::Report) : 0) + ... + 0); }
         static constexpr size_t server_cluster_count() { return (T::is_role(Role::Server) + ... + 0); }
         static constexpr size_t client_cluster_count() { return (T::is_role(Role::Client) + ... + 0); }
+        static constexpr bool has_info(cluster_info_t ci) { return ((T::info() == ci) || ...); }
 
         constexpr TClusterList(T&... d):
             clusters{
@@ -204,6 +231,34 @@ namespace zb
         zb_uint16_t app_cluster_list_ext[(ServerCount + ClientCount) - 2];
     } ZB_PACKED_STRUCT;
 
+    template<class MemPtr>
+    struct mem_ptr_traits
+    {
+        static constexpr bool is_mem_ptr = false;
+    };
+
+    template<class T, class MemT>
+    struct mem_ptr_traits<MemT T::*>
+    {
+        static constexpr bool is_mem_ptr = true;
+        using ClassType = T;
+        using MemberType = MemT;
+    };
+
+    
+    template<cluster_info_t ci, auto mem_desc> requires requires { typename decltype(mem_desc)::MemT; }
+    struct AttributeAccess
+    {
+        using MemT = decltype(mem_desc)::MemT;
+
+        auto operator=(MemT const& v)
+        {
+            return zb_zcl_set_attr_val(ep.ep_id, ci.id, (zb_uint8_t)ci.role, mem_desc.id, (zb_uint8_t*)&v, ZB_TRUE);
+        }
+
+        zb_af_endpoint_desc_t &ep;
+    };
+
     template<class Clusters>
     struct EPDesc
     {
@@ -242,6 +297,20 @@ namespace zb
                 .cvc_alarm_info = lev_ctrl_ctx
             }
         {
+        }
+
+        template<auto memPtr>
+        auto attr()
+        {
+            using MemPtrType = decltype(memPtr);
+            static_assert(mem_ptr_traits<MemPtrType>::is_mem_ptr, "Only member pointer is allowed");
+
+            using ClassType = mem_ptr_traits<MemPtrType>::ClassType;
+            //using MemType = mem_ptr_traits<MemPtrType>::MemberType;
+            using ClusterDescType = decltype(get_cluster_description<ClassType>());
+            static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
+
+            return AttributeAccess<ClusterDescType::info(), ClusterDescType::template get_member_description<memPtr>()>{ep};
         }
 
         SimpleDesc simple_desc;
