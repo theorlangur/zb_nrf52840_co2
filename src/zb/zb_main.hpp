@@ -189,19 +189,11 @@ namespace zb
         static constexpr bool has_info(cluster_info_t ci) { return ((T::info() == ci) || ...); }
 
         constexpr TClusterList(T&... d):
-            clusters{ d.desc()... },
-            reporting_attributes(reporting_attributes_count()),
-            cvc_level_ctrl_attributes(cvc_level_ctrl_attributes_count()),
-            server_count(server_cluster_count()),
-            client_count(client_cluster_count())
+            clusters{ d.desc()... }
         {
         }
 
         zb_zcl_cluster_desc_t clusters[N];
-        size_t reporting_attributes;
-        size_t cvc_level_ctrl_attributes;
-        zb_uint8_t server_count;
-        zb_uint8_t client_count;
     };
 
     template<class... ClusterAttributesDesc>
