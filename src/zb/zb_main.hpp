@@ -56,7 +56,7 @@ namespace zb
         constexpr TAttributeList(ADesc<T>... d):
             attributes{
                 AttrDesc(zb::ADesc{ .id = ZB_ZCL_ATTR_GLOBAL_CLUSTER_REVISION_ID, .a = Access::Read, .pData = &rev }),
-                (AttrDesc(d), ...)
+                AttrDesc(d)...
                 , g_LastAttribute
             },
             rev(Tag::rev())
@@ -189,9 +189,7 @@ namespace zb
         static constexpr bool has_info(cluster_info_t ci) { return ((T::info() == ci) || ...); }
 
         constexpr TClusterList(T&... d):
-            clusters{
-                (d.desc(), ...)
-            },
+            clusters{ d.desc()... },
             reporting_attributes(reporting_attributes_count()),
             cvc_level_ctrl_attributes(cvc_level_ctrl_attributes_count()),
             server_count(server_cluster_count()),
@@ -288,7 +286,7 @@ namespace zb
                 .identify_handler = nullptr,
                 .reserved_size = 0,
                 .reserved_ptr = nullptr,
-                .cluster_count = sizeof...(T),
+                .cluster_count = sizeof...(T) + 2,
                 .cluster_desc_list = clusters.clusters,
                 .simple_desc = &simple_desc,
                 .rep_info_count = Clusters::reporting_attributes_count(),
