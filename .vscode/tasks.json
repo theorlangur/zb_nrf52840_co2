@@ -18,12 +18,12 @@
             "options": {
                 "detached": true
             },
-            "command": "killall screen"
+            "command": "killall cat"
         },
         {
             "label": "Screen",
             "type": "shell",
-            "command": "screen $(nrfutil device list | grep ports | awk '{print $2}')"
+            "command": "cat $(nrfutil device list | grep ports | awk '{print $2}')"
         }
     ]
 }
