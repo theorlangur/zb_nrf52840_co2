@@ -131,6 +131,33 @@ constinit static auto groups_attr_list = zb::to_attributes(dev_ctx.groups_attr);
 constinit static auto scenes_attr_list = zb::to_attributes(dev_ctx.scenes_attr);
 constinit static auto level_control_attr_list = zb::to_attributes(dev_ctx.level_control_attr);
 
+template<class T>
+struct mem_tag_t{};
+
+template<class T>
+struct ContainerMem
+{
+	using AttrListType = decltype(zb::cluster_struct_to_attr_list(std::declval<T&>(), zb::get_cluster_description<T>()));
+	AttrListType m;
+
+	constexpr AttrListType& get(mem_tag_t<T>) { return m; }
+};
+
+template<class... Bases>
+struct Container: ContainerMem<Bases>...
+{
+	using ContainerMem<Bases>::get...;
+};
+
+template<class... Structs>
+constexpr auto bound_attributes(Structs&... s)
+{
+	return Container<Structs...>{ zb::cluster_struct_to_attr_list(s, zb::get_cluster_description<Structs>())... };
+}
+
+constinit static auto bound_attr = bound_attributes(dev_ctx.identify_attr, dev_ctx.on_off_attr);
+constinit static auto &on_off_a = bound_attr.get(mem_tag_t<zb_zcl_on_off_attrs_t>{});
+
 constinit static auto dimmable_lights = zb::to_clusters(
 		identify_attr_list
 		, on_off_attr_list
