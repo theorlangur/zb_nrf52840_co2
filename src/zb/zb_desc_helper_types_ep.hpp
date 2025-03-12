@@ -39,19 +39,26 @@ namespace zb
         zb_af_endpoint_desc_t &ep;
     };
 
-    template<class Clusters>
+    struct EPBaseInfo
+    {
+        zb_uint8_t ep;
+        zb_uint16_t dev_id;
+        zb_uint8_t dev_ver;
+    };
+
+    template<EPBaseInfo i, class Clusters>
     struct EPDesc
     {
         using SimpleDesc = TSimpleDesc<Clusters::server_cluster_count(), Clusters::client_cluster_count()>;
 
         template<class T1, class T2, class... T> requires std::is_same_v<TClusterList<T1, T2, T...>, Clusters>
-        constexpr EPDesc(zb_uint8_t ep, zb_uint16_t dev_id, zb_uint8_t dev_ver, TClusterList<T1, T2, T...> &clusters):
+        constexpr EPDesc(TClusterList<T1, T2, T...> &clusters):
             simple_desc{ 
                 {
-                    .endpoint = ep, 
+                    .endpoint = i.ep, 
                     .app_profile_id = ZB_AF_HA_PROFILE_ID, 
-                    .app_device_id = dev_id,
-                    .app_device_version = dev_ver,
+                    .app_device_id = i.dev_id,
+                    .app_device_version = i.dev_ver,
                     .reserved = 0,
                     .app_input_cluster_count = Clusters::server_cluster_count(),
                     .app_output_cluster_count = Clusters::client_cluster_count(),
@@ -62,7 +69,7 @@ namespace zb
             rep_ctx{},
             lev_ctrl_ctx{},
             ep{
-                .ep_id = ep,
+                .ep_id = i.ep,
                 .profile_id = ZB_AF_HA_PROFILE_ID,
                 .device_handler = nullptr,
                 .identify_handler = nullptr,

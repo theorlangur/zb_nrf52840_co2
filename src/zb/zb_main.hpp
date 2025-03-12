@@ -2,6 +2,7 @@
 #define ZB_MAIN_HPP_
 
 #include "zb_desc_helper_types_device.hpp"
+#include "zb_desc_helper_types_self_contained.hpp"
 
 namespace zb
 {
@@ -18,15 +19,24 @@ namespace zb
     //given multiples clusters in form of TClusterList<> this constructs and returns a EPDesc<..> 
     //with a proper zb_af_simple_desc_1_1_t-derived simple description and a properyl initialized zb_af_endpoint_desc_t
     //also with the automatically calculated and reserved space for reporting attributes and level control alarms
-    template<class... T>
-    constexpr auto configure_ep(zb_uint8_t ep, zb_uint16_t dev_id, zb_uint8_t dev_ver, TClusterList<T...> &clusters) -> EPDesc<TClusterList<T...>>
+    template<EPBaseInfo i, class... T>
+    constexpr auto configure_ep(TClusterList<T...> &clusters) -> EPDesc<i, TClusterList<T...>>
     {
-        return {ep, dev_id, dev_ver, clusters};
+        return {clusters};
     }
 
     //packs existing Endpoints together into a Device, with properly initialized zb_af_device_ctx_t
-    template<class... Clusters>
-    constexpr auto configure_device(EPDesc<Clusters>&...eps) { return Device{eps...}; }
+    template<EPBaseInfo... i, class... Clusters>
+    constexpr auto configure_device(EPDesc<i, Clusters>&...eps) { return Device{eps...}; }
+
+    template<class... SelfContainedEP> requires (IsEPDescSelfContained<SelfContainedEP> && ...)
+    constexpr auto configure_device(SelfContainedEP&...eps) { return Device{eps.ep...}; }
+
+    template<zb::EPBaseInfo i, class... Structs>
+    constexpr auto make_endpoint(Structs&... s) { return EPDescSelfContained<i, Structs...>{s...}; }
+
+    template<class... Args>
+    constexpr auto make_device(Args... a) { return DeviceFull{a...}; }
 }
 
 #endif
