@@ -78,14 +78,12 @@
 /* Use onboard led4 to act as a light bulb.
  * The app.overlay file has this at node label "pwm_led3" in /pwmleds.
  */
-#define PWM_DK_LED4_NODE                DT_NODELABEL(led_pwm_0)
-//#define PWM_DK_LED4_NODE                DT_ALIAS(led_pwm_0)
+#define PWM_DK_LED4_NODE                DT_ALIAS(pwm_led0)
 
 #if DT_NODE_HAS_STATUS(PWM_DK_LED4_NODE, okay)
 static const struct pwm_dt_spec led_pwm = PWM_DT_SPEC_GET(PWM_DK_LED4_NODE);
 #else
-//static const struct pwm_dt_spec led_pwm = PWM_DT_SPEC_GET(PWM_DK_LED4_NODE);
-//#error "Choose supported PWM driver"
+#error "Choose supported PWM driver"
 #endif
 
 #define LED0_NODE DT_ALIAS(led0)
@@ -94,7 +92,7 @@ static const struct pwm_dt_spec led_pwm = PWM_DT_SPEC_GET(PWM_DK_LED4_NODE);
  * A build error on this line means your board is unsupported.
  * See the sample documentation for information on how to fix this.
  */
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+//static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 /* Led PWM period, calculated for 100 Hz signal - in microseconds. */
 #define LED_PWM_PERIOD_US               (USEC_PER_SEC / 100U)
@@ -131,7 +129,8 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 		, dev_ctx.groups_attr
 		, dev_ctx.scenes_attr
 		, dev_ctx.level_control_attr
-		));
+		)
+);
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
 
 /**@brief Starts identifying the device.
@@ -198,13 +197,13 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 /**@brief Function for initializing additional PWM leds. */
 static void pwm_led_init(void)
 {
-	//if (!device_is_ready(led_pwm.dev)) {
-	//	LOG_ERR("Error: PWM device %s is not ready",
-	//		led_pwm.dev->name);
-	//}
+	if (!device_is_ready(led_pwm.dev)) {
+		LOG_ERR("Error: PWM device %s is not ready",
+			led_pwm.dev->name);
+	}
 
-	gpio_is_ready_dt(&led);
-	gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+	//gpio_is_ready_dt(&led);
+	//gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
 }
 
 /**@brief Function for initializing LEDs and Buttons. */
@@ -234,14 +233,14 @@ static void light_bulb_set_brightness(zb_uint8_t brightness_level)
 {
 	uint32_t pulse = brightness_level * LED_PWM_PERIOD_US / 255U;
 
-	if (brightness_level == 0)
-		gpio_pin_set_dt(&led, 0);
-	else
-		gpio_pin_set_dt(&led, 1);
-	//if (pwm_set_dt(&led_pwm, PWM_USEC(LED_PWM_PERIOD_US), PWM_USEC(pulse))) {
-	//	LOG_ERR("Pwm led 4 set fails:\n");
-	//	return;
-	//}
+	//if (brightness_level == 0)
+	//	gpio_pin_set_dt(&led, 0);
+	//else
+	//	gpio_pin_set_dt(&led, 1);
+	if (pwm_set_dt(&led_pwm, PWM_USEC(LED_PWM_PERIOD_US), PWM_USEC(pulse))) {
+		LOG_ERR("Pwm led 4 set fails:\n");
+		return;
+	}
 }
 
 /**@brief Function for setting the light bulb brightness.
