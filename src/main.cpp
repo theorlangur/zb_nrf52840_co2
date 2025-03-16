@@ -365,6 +365,107 @@ static void bulb_clusters_attr_init(void)
 	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = dev_ctx.level_control_attr.current_level;
 }
 
+using dev_callback_handler_t = zb_ret_t(*)(zb_zcl_device_callback_param_t *);
+using set_attr_value_handler_t = zb_ret_t (*)(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam);
+
+static constexpr uint16_t kANY_CLUSTER = 0xffff;
+static constexpr uint16_t kANY_ATTRIBUTE = 0xffff;
+static constexpr uint8_t  kANY_EP = 0xff;
+
+struct set_attr_val_gen_desc_t
+{
+	zb_uint8_t ep;
+	uint16_t cluster;
+	uint16_t attribute;
+	set_attr_value_handler_t handler;
+
+	constexpr bool fits(zb_uint8_t _ep, uint16_t _cluster, uint16_t _attr) const
+	{
+		return ((_ep == ep) || (ep == kANY_EP))
+			&& ((_cluster == cluster) || (cluster == kANY_CLUSTER))
+			&& ((_attr == attribute) || (attribute == kANY_ATTRIBUTE));
+	}
+};
+
+struct dev_cb_handlers_desc
+{
+	dev_callback_handler_t default_handler = nullptr;
+};
+
+
+template<dev_cb_handlers_desc generic={}, set_attr_val_gen_desc_t... handlers>
+void tpl_device_cb(zb_bufid_t bufid)
+{
+	zb::BufViewPtr bv{bufid};
+	auto *pDevParam = bv.param<zb_zcl_device_callback_param_t>();
+	pDevParam->status = RET_OK;
+	switch(pDevParam->device_cb_id)
+	{
+	case ZB_ZCL_SET_ATTR_VALUE_CB_ID:
+		{
+			auto *pSetVal = &pDevParam->cb_param.set_attr_value_param;
+			static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
+			[[maybe_unused]]zb_ret_t r = 
+				((handlers.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id) ? handlers.handler(pSetVal, pDevParam) : RET_OK), ...);
+			//auto call = [&](set_attr_val_gen_desc_t const& h)
+			//{
+			//	if (h.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id))
+			//		h.handler(pSetVal, pDevParam);
+			//};
+			//(call(handlers), ...);
+		}
+		break;
+	default:
+		break;
+	}
+
+	if constexpr (generic.default_handler)
+		pDevParam->status = generic.default_handler(pDevParam);
+}
+
+static zb_ret_t test_set_on_off(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+{
+	LOG_INF("on/off attribute setting to %hd", (zb_bool_t)p->values.data8);
+	on_off_set_value((zb_bool_t)p->values.data8);
+	return RET_OK;
+}
+
+static zb_ret_t test_set_level(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+{
+	uint16_t value = p->values.data16;
+
+	LOG_INF("level control attribute setting to %hd",
+			value);
+	level_control_set_value(value);
+	return RET_OK;
+}
+
+static zb_ret_t test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
+{
+	zb_uint8_t cluster_id;
+	zb_uint8_t attr_id;
+	LOG_INF("%s id %hd", __func__, device_cb_param->device_cb_id);
+
+	/* Set default response value. */
+	device_cb_param->status = RET_OK;
+
+	switch (device_cb_param->device_cb_id) {
+	case ZB_ZCL_LEVEL_CONTROL_SET_VALUE_CB_ID:
+		LOG_INF("Level control setting to %d",
+			device_cb_param->cb_param.level_control_set_value_param
+			.new_value);
+		level_control_set_value(
+			device_cb_param->cb_param.level_control_set_value_param
+			.new_value);
+		break;
+	default:
+		break;
+	}
+
+	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
+	return RET_OK;
+}
+
 /**@brief Callback function for handling ZCL commands.
  *
  * @param[in]   bufid   Reference to Zigbee stack buffer
@@ -463,7 +564,21 @@ int main(void)
 	register_factory_reset_button(FACTORY_RESET_BUTTON);
 
 	/* Register callback for handling ZCL commands. */
-	ZB_ZCL_REGISTER_DEVICE_CB(zcl_device_cb);
+	auto dev_cb = tpl_device_cb<
+	    {test_device_cb},
+		set_attr_val_gen_desc_t{
+			.ep = DIMMABLE_LIGHT_ENDPOINT, 
+			.cluster = ZB_ZCL_CLUSTER_ID_ON_OFF, 
+			.attribute = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, 
+			.handler = &test_set_on_off},
+		set_attr_val_gen_desc_t{
+			.ep = DIMMABLE_LIGHT_ENDPOINT, 
+			.cluster = ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL, 
+			.attribute = ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID, 
+			.handler = &test_set_level}
+	>;
+	//ZB_ZCL_REGISTER_DEVICE_CB(zcl_device_cb);
+	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
 
 	/* Register dimmer switch device context (endpoints). */
 	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
