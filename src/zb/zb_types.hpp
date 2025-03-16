@@ -118,7 +118,6 @@ namespace zb
             static_assert(sizeof(T) == 0, "Unknown type");
         return Type::Invalid;
     }
-
 }
 
 #endif
