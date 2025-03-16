@@ -368,15 +368,8 @@ static void bulb_clusters_attr_init(void)
 using dev_callback_handler_t = zb_ret_t(*)(zb_zcl_device_callback_param_t *);
 using set_attr_value_handler_t = zb_ret_t (*)(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam);
 
-static constexpr uint16_t kANY_CLUSTER = 0xffff;
-static constexpr uint16_t kANY_ATTRIBUTE = 0xffff;
-static constexpr uint8_t  kANY_EP = 0xff;
-
-struct set_attr_val_gen_desc_t
+struct set_attr_val_gen_desc_t: zb::EPClusterAttributeDesc_t
 {
-	zb_uint8_t ep;
-	uint16_t cluster;
-	uint16_t attribute;
 	set_attr_value_handler_t handler;
 
 	constexpr bool fits(zb_uint8_t _ep, uint16_t _cluster, uint16_t _attr) const
@@ -567,15 +560,11 @@ int main(void)
 	auto dev_cb = tpl_device_cb<
 	    {test_device_cb},
 		set_attr_val_gen_desc_t{
-			.ep = DIMMABLE_LIGHT_ENDPOINT, 
-			.cluster = ZB_ZCL_CLUSTER_ID_ON_OFF, 
-			.attribute = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, 
-			.handler = &test_set_on_off},
+			dim_ep.handler_filter_for_attribute<&zb_zcl_on_off_attrs_t::on_off>(),
+			&test_set_on_off},
 		set_attr_val_gen_desc_t{
-			.ep = DIMMABLE_LIGHT_ENDPOINT, 
-			.cluster = ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL, 
-			.attribute = ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID, 
-			.handler = &test_set_level}
+			dim_ep.handler_filter_for_attribute<&zb_zcl_level_control_attrs_t::current_level>(),
+			&test_set_level}
 	>;
 	//ZB_ZCL_REGISTER_DEVICE_CB(zcl_device_cb);
 	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);

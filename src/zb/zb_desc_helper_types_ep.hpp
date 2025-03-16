@@ -39,6 +39,17 @@ namespace zb
         zb_af_endpoint_desc_t &ep;
     };
 
+    struct EPClusterAttributeDesc_t
+    {
+        static constexpr uint16_t kANY_CLUSTER = 0xffff;
+        static constexpr uint16_t kANY_ATTRIBUTE = 0xffff;
+        static constexpr uint8_t  kANY_EP = 0xff;
+
+        zb_uint8_t ep = kANY_EP;
+        uint16_t cluster = kANY_CLUSTER;
+        uint16_t attribute = kANY_ATTRIBUTE;
+    };
+
     struct EPBaseInfo
     {
         zb_uint8_t ep;
@@ -98,6 +109,27 @@ namespace zb
             static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
 
             return AttributeAccess<ClusterDescType::info(), ClusterDescType::template get_member_description<memPtr>()>{ep};
+        }
+
+        template<auto memPtr>
+        constexpr EPClusterAttributeDesc_t handler_filter_for_attribute()
+        {
+            using MemPtrType = decltype(memPtr);
+            static_assert(mem_ptr_traits<MemPtrType>::is_mem_ptr, "Only member pointer is allowed");
+
+            using ClassType = mem_ptr_traits<MemPtrType>::ClassType;
+            //using MemType = mem_ptr_traits<MemPtrType>::MemberType;
+            using ClusterDescType = decltype(get_cluster_description<ClassType>());
+            static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
+            return {.ep = i.ep, .cluster = ClusterDescType::info().id, .attribute = ClusterDescType::template get_member_description<memPtr>().id};
+        }
+
+        template<class Cluster>
+        constexpr EPClusterAttributeDesc_t handler_filter_for_cluster()
+        {
+            using ClusterDescType = decltype(get_cluster_description<Cluster>());
+            static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
+            return {.ep = i.ep, .cluster = ClusterDescType::info().id};
         }
 
         SimpleDesc simple_desc;
