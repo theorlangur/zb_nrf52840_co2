@@ -365,75 +365,22 @@ static void bulb_clusters_attr_init(void)
 	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = dev_ctx.level_control_attr.current_level;
 }
 
-using dev_callback_handler_t = zb_ret_t(*)(zb_zcl_device_callback_param_t *);
-using set_attr_value_handler_t = zb_ret_t (*)(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam);
-
-struct set_attr_val_gen_desc_t: zb::EPClusterAttributeDesc_t
-{
-	set_attr_value_handler_t handler;
-
-	constexpr bool fits(zb_uint8_t _ep, uint16_t _cluster, uint16_t _attr) const
-	{
-		return ((_ep == ep) || (ep == kANY_EP))
-			&& ((_cluster == cluster) || (cluster == kANY_CLUSTER))
-			&& ((_attr == attribute) || (attribute == kANY_ATTRIBUTE));
-	}
-};
-
-struct dev_cb_handlers_desc
-{
-	dev_callback_handler_t default_handler = nullptr;
-};
-
-
-template<dev_cb_handlers_desc generic={}, set_attr_val_gen_desc_t... handlers>
-void tpl_device_cb(zb_bufid_t bufid)
-{
-	zb::BufViewPtr bv{bufid};
-	auto *pDevParam = bv.param<zb_zcl_device_callback_param_t>();
-	pDevParam->status = RET_OK;
-	switch(pDevParam->device_cb_id)
-	{
-	case ZB_ZCL_SET_ATTR_VALUE_CB_ID:
-		{
-			auto *pSetVal = &pDevParam->cb_param.set_attr_value_param;
-			static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
-			[[maybe_unused]]zb_ret_t r = 
-				((handlers.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id) ? handlers.handler(pSetVal, pDevParam) : RET_OK), ...);
-			//auto call = [&](set_attr_val_gen_desc_t const& h)
-			//{
-			//	if (h.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id))
-			//		h.handler(pSetVal, pDevParam);
-			//};
-			//(call(handlers), ...);
-		}
-		break;
-	default:
-		break;
-	}
-
-	if constexpr (generic.default_handler)
-		pDevParam->status = generic.default_handler(pDevParam);
-}
-
-static zb_ret_t test_set_on_off(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+static void test_set_on_off(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
 {
 	LOG_INF("on/off attribute setting to %hd", (zb_bool_t)p->values.data8);
 	on_off_set_value((zb_bool_t)p->values.data8);
-	return RET_OK;
 }
 
-static zb_ret_t test_set_level(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+static void test_set_level(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
 {
 	uint16_t value = p->values.data16;
 
 	LOG_INF("level control attribute setting to %hd",
 			value);
 	level_control_set_value(value);
-	return RET_OK;
 }
 
-static zb_ret_t test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
+static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 {
 	zb_uint8_t cluster_id;
 	zb_uint8_t attr_id;
@@ -456,7 +403,6 @@ static zb_ret_t test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 	}
 
 	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
-	return RET_OK;
 }
 
 /**@brief Callback function for handling ZCL commands.
@@ -557,12 +503,12 @@ int main(void)
 	register_factory_reset_button(FACTORY_RESET_BUTTON);
 
 	/* Register callback for handling ZCL commands. */
-	auto dev_cb = tpl_device_cb<
-	    {test_device_cb},
-		set_attr_val_gen_desc_t{
+	auto dev_cb = zb::tpl_device_cb<
+	    {test_device_cb}, //default generic
+		zb::set_attr_val_gen_desc_t{
 			dim_ep.handler_filter_for_attribute<&zb_zcl_on_off_attrs_t::on_off>(),
 			&test_set_on_off},
-		set_attr_val_gen_desc_t{
+		zb::set_attr_val_gen_desc_t{
 			dim_ep.handler_filter_for_attribute<&zb_zcl_level_control_attrs_t::current_level>(),
 			&test_set_level}
 	>;

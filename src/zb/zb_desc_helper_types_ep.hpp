@@ -48,6 +48,13 @@ namespace zb
         zb_uint8_t ep = kANY_EP;
         uint16_t cluster = kANY_CLUSTER;
         uint16_t attribute = kANY_ATTRIBUTE;
+
+        constexpr bool fits(zb_uint8_t _ep, uint16_t _cluster, uint16_t _attr) const
+        {
+            return ((_ep == ep) || (ep == kANY_EP))
+                && ((_cluster == cluster) || (cluster == kANY_CLUSTER))
+                && ((_attr == attribute) || (attribute == kANY_ATTRIBUTE));
+        }
     };
 
     struct EPBaseInfo

@@ -4,6 +4,7 @@
 #include "zb_desc_helper_types_device.hpp"
 #include "zb_desc_helper_types_self_contained.hpp"
 #include "zb_signals.hpp"
+#include "zb_handers.hpp"
 
 #include <zigbee/zigbee_error_handler.h>
 
