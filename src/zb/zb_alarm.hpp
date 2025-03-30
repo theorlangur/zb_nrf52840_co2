@@ -1,13 +1,11 @@
 #ifndef ZBH_ALARM_HPP_
 #define ZBH_ALARM_HPP_
-//#include "esp_zigbee_core.h"
+
+#include <optional>
 #include <zephyr/sys/reboot.h>
 #include <cstdint>
-//#include "lib_misc_helpers.hpp"
 #include "lib_function.hpp"
 #include "../lib/libz_thread_lock.hpp"
-#include "lib_object_pool.hpp"
-#include "lib_array_count.hpp"
 #include "zboss_api_core.h"
 
 namespace zb
