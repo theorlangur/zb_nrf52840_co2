@@ -1,0 +1,43 @@
+#ifndef LIBZ_THREAD_LOCK_HPP_
+#define LIBZ_THREAD_LOCK_HPP_
+
+#include <zephyr/spinlock.h>
+
+namespace thread{
+    class SpinLock
+    {
+    public:
+        auto lock() { return k_spin_lock(&m_Lock); }
+        void unlock(k_spinlock_key_t k) { k_spin_unlock(&m_Lock, k); }
+
+    private:
+        k_spinlock m_Lock{};
+    };
+
+    class ILockable
+    {
+    public:
+        virtual ~ILockable() = default; 
+        virtual void lock() = 0;
+        virtual void unlock() = 0;
+    };
+
+    class NoLock: public ILockable
+    {
+    public:
+        virtual void lock() override {}
+        virtual void unlock() override {}
+    };
+
+    struct LockGuard
+    {
+        LockGuard(SpinLock *pL):m_pLock(pL) { if (pL) m_Key = pL->lock(); }
+        LockGuard(SpinLock &l):LockGuard(&l){}
+        ~LockGuard() { if (m_pLock) m_pLock->unlock(m_Key); }
+    private:
+        SpinLock *m_pLock;
+        k_spinlock_key_t m_Key;
+    };
+
+}
+#endif
