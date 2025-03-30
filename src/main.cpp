@@ -22,6 +22,7 @@
 #include "zb/zb_main.hpp"
 #include "zb/zb_std_cluster_desc.hpp"
 #include "zb_dimmable_light.h"
+#include "zb/zb_alarm.hpp"
 
 #define RUN_STATUS_LED                  DK_LED1
 #define RUN_LED_BLINK_INTERVAL          1000
@@ -110,7 +111,7 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
  * Stores all settings and static values.
  */
 typedef struct {
-	zb_zcl_basic_attrs_ext_t basic_attr;
+	/*zb_zcl_basic_attrs_ext_t*/ zb::zb_zcl_basic_names_t basic_attr;
 	zb_zcl_identify_attrs_t identify_attr;
 	zb_zcl_scenes_attrs_t scenes_attr;
 	zb_zcl_groups_attrs_t groups_attr;
@@ -315,39 +316,9 @@ static void bulb_clusters_attr_init(void)
 {
 	/* Basic cluster attributes data */
 	dev_ctx.basic_attr.zcl_version = ZB_ZCL_VERSION;
-	dev_ctx.basic_attr.app_version = BULB_INIT_BASIC_APP_VERSION;
-	dev_ctx.basic_attr.stack_version = BULB_INIT_BASIC_STACK_VERSION;
-	dev_ctx.basic_attr.hw_version = BULB_INIT_BASIC_HW_VERSION;
-
-	/* Use ZB_ZCL_SET_STRING_VAL to set strings, because the first byte
-	 * should contain string length without trailing zero.
-	 *
-	 * For example "test" string will be encoded as:
-	 *   [(0x4), 't', 'e', 's', 't']
-	 */
-	ZB_ZCL_SET_STRING_VAL(
-		dev_ctx.basic_attr.mf_name,
-		BULB_INIT_BASIC_MANUF_NAME,
-		ZB_ZCL_STRING_CONST_SIZE(BULB_INIT_BASIC_MANUF_NAME));
-
-	ZB_ZCL_SET_STRING_VAL(
-		dev_ctx.basic_attr.model_id,
-		BULB_INIT_BASIC_MODEL_ID,
-		ZB_ZCL_STRING_CONST_SIZE(BULB_INIT_BASIC_MODEL_ID));
-
-	ZB_ZCL_SET_STRING_VAL(
-		dev_ctx.basic_attr.date_code,
-		BULB_INIT_BASIC_DATE_CODE,
-		ZB_ZCL_STRING_CONST_SIZE(BULB_INIT_BASIC_DATE_CODE));
-
-	dev_ctx.basic_attr.power_source = BULB_INIT_BASIC_POWER_SOURCE;
-
-	ZB_ZCL_SET_STRING_VAL(
-		dev_ctx.basic_attr.location_id,
-		BULB_INIT_BASIC_LOCATION_DESC,
-		ZB_ZCL_STRING_CONST_SIZE(BULB_INIT_BASIC_LOCATION_DESC));
-
-	dev_ctx.basic_attr.ph_env = BULB_INIT_BASIC_PH_ENV;
+	dev_ctx.basic_attr.manufacturer = BULB_INIT_BASIC_MANUF_NAME;
+	dev_ctx.basic_attr.model = BULB_INIT_BASIC_MODEL_ID;
+	dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::DC;
 
 	/* Identify cluster attributes data. */
 	dev_ctx.identify_attr.identify_time =
@@ -365,16 +336,14 @@ static void bulb_clusters_attr_init(void)
 	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = dev_ctx.level_control_attr.current_level;
 }
 
-static void test_set_on_off(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+static void typed_set_on_off(zb_bool_t v)
 {
-	LOG_INF("on/off attribute setting to %hd", (zb_bool_t)p->values.data8);
-	on_off_set_value((zb_bool_t)p->values.data8);
+	LOG_INF("on/off attribute setting to %hd", v);
+	on_off_set_value(v);
 }
 
-static void test_set_level(zb_zcl_set_attr_value_param_t *p, zb_zcl_device_callback_param_t *pDevCBParam)
+static void typed_set_level(uint16_t value)
 {
-	uint16_t value = p->values.data16;
-
 	LOG_INF("level control attribute setting to %hd",
 			value);
 	level_control_set_value(value);
@@ -405,74 +374,6 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
 }
 
-/**@brief Callback function for handling ZCL commands.
- *
- * @param[in]   bufid   Reference to Zigbee stack buffer
- *                      used to pass received data.
- */
-static void zcl_device_cb(zb_bufid_t bufid)
-{
-	zb_uint8_t cluster_id;
-	zb_uint8_t attr_id;
-	zb_zcl_device_callback_param_t  *device_cb_param =
-		ZB_BUF_GET_PARAM(bufid, zb_zcl_device_callback_param_t);
-
-	LOG_INF("%s id %hd", __func__, device_cb_param->device_cb_id);
-
-	/* Set default response value. */
-	device_cb_param->status = RET_OK;
-
-	switch (device_cb_param->device_cb_id) {
-	case ZB_ZCL_LEVEL_CONTROL_SET_VALUE_CB_ID:
-		LOG_INF("Level control setting to %d",
-			device_cb_param->cb_param.level_control_set_value_param
-			.new_value);
-		level_control_set_value(
-			device_cb_param->cb_param.level_control_set_value_param
-			.new_value);
-		break;
-
-	case ZB_ZCL_SET_ATTR_VALUE_CB_ID:
-		cluster_id = device_cb_param->cb_param.
-			     set_attr_value_param.cluster_id;
-		attr_id = device_cb_param->cb_param.
-			  set_attr_value_param.attr_id;
-
-		if (cluster_id == ZB_ZCL_CLUSTER_ID_ON_OFF) {
-			uint8_t value =
-				device_cb_param->cb_param.set_attr_value_param
-				.values.data8;
-
-			LOG_INF("on/off attribute setting to %hd", value);
-			if (attr_id == ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID) {
-				on_off_set_value((zb_bool_t)value);
-			}
-		} else if (cluster_id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL) {
-			uint16_t value = device_cb_param->cb_param.
-					 set_attr_value_param.values.data16;
-
-			LOG_INF("level control attribute setting to %hd",
-				value);
-			if (attr_id ==
-			    ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID) {
-				level_control_set_value(value);
-			}
-		} else {
-			/* Other clusters can be processed here */
-			LOG_INF("Unhandled cluster attribute id: %d",
-				cluster_id);
-			device_cb_param->status = RET_NOT_IMPLEMENTED;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
-}
-
-
 /**@brief Zigbee stack event handler.
  *
  * @param[in]   bufid   Reference to the Zigbee stack buffer
@@ -485,6 +386,8 @@ void zboss_signal_handler(zb_bufid_t bufid)
 
 	ZB_ERROR_CHECK(zb::tpl_signal_handler<{}>(bufid));
 }
+
+zb::ZbAlarmExt<> g_TestAlarm;
 
 int main(void)
 {
@@ -507,12 +410,11 @@ int main(void)
 	    {test_device_cb}, //default generic
 		zb::set_attr_val_gen_desc_t{
 			dim_ep.handler_filter_for_attribute<&zb_zcl_on_off_attrs_t::on_off>(),
-			&test_set_on_off},
+			zb::to_handler_v<&typed_set_on_off>},
 		zb::set_attr_val_gen_desc_t{
 			dim_ep.handler_filter_for_attribute<&zb_zcl_level_control_attrs_t::current_level>(),
-			&test_set_level}
+			zb::to_handler_v<&typed_set_level>}
 	>;
-	//ZB_ZCL_REGISTER_DEVICE_CB(zcl_device_cb);
 	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
 
 	/* Register dimmer switch device context (endpoints). */
@@ -520,6 +422,10 @@ int main(void)
 
 	bulb_clusters_attr_init();
 	level_control_set_value(dev_ctx.level_control_attr.current_level);
+
+	//g_TestAlarm.Setup([err]{
+	//		level_control_set_value(err);
+	//		}, 5000);
 
 	/* Register handler to identify notifications. */
 	ZB_AF_SET_IDENTIFY_NOTIFICATION_HANDLER(DIMMABLE_LIGHT_ENDPOINT, identify_cb);
