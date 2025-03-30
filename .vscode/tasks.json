@@ -4,13 +4,13 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "cmake --build build",
+            "command": "./e.sh cmake --build build",
             "group": { "kind": "build" }
         },
         {
             "label": "Flash",
             "type": "shell",
-            "command": "west flash"
+            "command": "./e.sh west flash"
         },
         {
             "label": "Kill Screen",
@@ -23,7 +23,7 @@
         {
             "label": "Screen",
             "type": "shell",
-            "command": "cat $(nrfutil device list | grep ports | awk '{print $2}')"
+            "command": "./screen.sh"
         }
     ]
 }
