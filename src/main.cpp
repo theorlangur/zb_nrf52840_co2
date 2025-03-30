@@ -111,7 +111,7 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
  * Stores all settings and static values.
  */
 typedef struct {
-	/*zb_zcl_basic_attrs_ext_t*/ zb::zb_zcl_basic_names_t basic_attr;
+	zb::zb_zcl_basic_names_t basic_attr;
 	zb_zcl_identify_attrs_t identify_attr;
 	zb_zcl_scenes_attrs_t scenes_attr;
 	zb_zcl_groups_attrs_t groups_attr;
