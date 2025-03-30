@@ -5,6 +5,7 @@
 #include <zephyr/sys/reboot.h>
 #include <cstdint>
 #include "lib_function.hpp"
+#include "lib_misc_helpers.hpp"
 #include "../lib/libz_thread_lock.hpp"
 #include "zboss_api_core.h"
 
@@ -142,7 +143,7 @@ namespace zb
 
                 if (h >= kLowOnHandlesThreshold)
                 {
-                    //FMT_PRINT("Got back handle {:x} >= threshold of {:x}. Prepare to die\n", h, kLowOnHandlesThreshold);
+                    FMT_PRINT("Got back handle {:x} >= threshold of {:x}. Prepare to die\n", h, kLowOnHandlesThreshold);
                     //soon we'll be out of handles - let's restart at a convenient moment
                     g_RunningOutOfHandles = true;
                 }
@@ -154,7 +155,7 @@ namespace zb
     public:
         static void deactivate_counter_of_death()
         {
-            //FMT_PRINT("Low on handles: Counter of death deactivated\n");
+            FMT_PRINT("Low on handles: Counter of death deactivated\n");
             g_CounterOfDeath = kCounterOfDeathInactive;
         }
 
@@ -163,7 +164,7 @@ namespace zb
             if (g_RunningOutOfHandles)
             {
                 g_CounterOfDeath = kCounterOfDeathValue;
-                //FMT_PRINT("Low on handles: Counter of death activated: {} iterations left\n", g_CounterOfDeath);
+                FMT_PRINT("Low on handles: Counter of death activated: {} iterations left\n", g_CounterOfDeath);
             }
         }
 
@@ -174,12 +175,12 @@ namespace zb
                 if (!(--g_CounterOfDeath))
                 {
                     //boom
-                    //FMT_PRINT("Low on handles: time to die and reborn\n");
+                    FMT_PRINT("Low on handles: time to die and reborn\n");
 
                     sys_reboot(SYS_REBOOT_WARM);
                     return;
                 }
-                //FMT_PRINT("Low on handles: tick-tock: {} iterations left\n", ZbAlarm::g_CounterOfDeath);
+                FMT_PRINT("Low on handles: tick-tock: {} iterations left\n", ZbAlarm::g_CounterOfDeath);
             }
         }
     };
@@ -207,7 +208,7 @@ namespace zb
                 auto res = pT->Setup(callback_t(e.cb), e.param, pT->m_Interval);
                 if (res != RET_OK)
                 {
-                    //FMT_PRINT("Could not re-register timer with error {:x}\n", res);
+                    FMT_PRINT("Could not re-register timer with error {:x}\n", res);
                 }
             }
         }
