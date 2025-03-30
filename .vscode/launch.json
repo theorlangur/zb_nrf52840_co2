@@ -12,6 +12,7 @@
             "cwd": "${workspaceFolder}",
             "miDebuggerServerAddress": "localhost:3333",
             "useExtendedRemote": true,
+            "stopAtEntry": true,
             "MIMode": "gdb"
         }
     ]
