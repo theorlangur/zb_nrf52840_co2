@@ -19,4 +19,5 @@ target_sources(app PRIVATE
 target_include_directories(app PRIVATE include)
 target_include_directories(app PRIVATE submodules/esp_generic_lib/include)
 target_link_libraries(app PRIVATE c stdc++ supc++)
+target_compile_options(app PUBLIC -D__cpp_concepts=202002L -Wno-builtin-macro-redefined -Wno-invalid-offsetof)
 # NORDIC SDK APP END
