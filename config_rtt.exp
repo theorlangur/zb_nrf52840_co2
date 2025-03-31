@@ -11,19 +11,19 @@ spawn telnet $address $port
 expect "Open On-Chip Debugger"
 
 # Send the 'reset halt' command
-send "halt\r"
+send "reset halt\r"
 expect "xPSR"
 
 send "rtt setup 0x20000000 0x10000 \"SEGGER RTT\"\r"
-send "rtt start"
+send "rtt start\r"
 
 # Wait for the next prompt or specific output
 expect "rtt: Control block found"
 
-send "rtt server start 9090 0"
+send "rtt server start 9090 0\r"
 expect "Listening on port 9090 for rtt"
 
-send "resume"
+send "resume\r"
 
 # Send the 'exit' command
 send "exit\r"
