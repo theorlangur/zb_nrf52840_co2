@@ -11,14 +11,19 @@ spawn telnet $address $port
 expect "Open On-Chip Debugger"
 
 # Send the 'reset halt' command
-send "program build/zbco2/zephyr/zephyr.bin 0x26000 reset\r"
+send "halt\r"
+expect "xPSR"
+
+send "rtt setup 0x20000000 0x10000 \"SEGGER RTT\"\r"
+send "rtt start"
 
 # Wait for the next prompt or specific output
-expect "** Programming Finished **"
+expect "rtt: Control block found"
 
-send "reset halt\r"
+send "rtt server start 9090 0"
+expect "Listening on port 9090 for rtt"
 
-expect "xPSR"
+send "resume"
 
 # Send the 'exit' command
 send "exit\r"

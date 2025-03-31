@@ -13,12 +13,48 @@
             "command": "./e.sh west flash"
         },
         {
+            "label": "Flash OpenOCD",
+            "type": "shell",
+            "command": "./flash.exp"
+        },
+        {
+            "label": "Reset Halt OpenOCD",
+            "type": "shell",
+            "command": "./reset_halt.exp"
+        },
+        {
+            "label": "Reset OpenOCD",
+            "type": "shell",
+            "command": "./reset.exp"
+        },
+        {
+            "label": "Setup RTT",
+            "type": "shell",
+            "command": "./config_rtt.exp"
+        },
+        {
             "label": "Kill Screen",
             "type": "shell",
             "options": {
                 "detached": true
             },
             "command": "killall cat"
+        },
+        {
+            "label": "Start OpenOCD",
+            "type": "shell",
+            "options": {
+                "detached": true
+            },
+            "command": "./ocd_cmsis_dap.sh"
+        },
+        {
+            "label": "Stop OpenOCD",
+            "type": "shell",
+            "options": {
+                "detached": true
+            },
+            "command": "killall openocd"
         },
         {
             "label": "Screen",

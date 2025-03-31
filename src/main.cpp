@@ -19,10 +19,15 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/drivers/gpio.h>
 
+#define FORCE_FMT
+#define PRINTF_FUNC(...) printk(__VA_ARGS__)
+
 #include "zb/zb_main.hpp"
 #include "zb/zb_std_cluster_desc.hpp"
 #include "zb_dimmable_light.h"
 #include "zb/zb_alarm.hpp"
+
+#include "lib_misc_helpers.hpp"
 
 #define RUN_STATUS_LED                  DK_LED1
 #define RUN_LED_BLINK_INTERVAL          1000
@@ -387,14 +392,25 @@ void zboss_signal_handler(zb_bufid_t bufid)
 	ZB_ERROR_CHECK(zb::tpl_signal_handler<{}>(bufid));
 }
 
+K_MUTEX_DEFINE(rtt_term_mutex);
+extern "C" void zephyr_rtt_mutex_lock()
+{
+	k_mutex_lock(&rtt_term_mutex, K_FOREVER);
+}
+
+extern "C" void zephyr_rtt_mutex_unlock()
+{
+	k_mutex_unlock(&rtt_term_mutex);
+}
+
 zb::ZbAlarmExt<> g_TestAlarm;
 
 int main(void)
 {
-	//K_ERR_KERNEL_PANIC;
 	int blink_status = 0;
 	int err;
 
+	FMT_PRINTLN("Test print");
 	LOG_INF("Starting ZBOSS Light Bulb example");
 
 	/* Initialize */
@@ -416,6 +432,8 @@ int main(void)
 			zb::to_handler_v<&typed_set_level>}
 	>;
 	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
+
+	FMT_PRINTLN("Dev cb: {}", dev_cb);
 
 	/* Register dimmer switch device context (endpoints). */
 	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
