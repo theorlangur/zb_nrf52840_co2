@@ -26,6 +26,7 @@
 #include "zb/zb_std_cluster_desc.hpp"
 #include "zb_dimmable_light.h"
 #include "zb/zb_alarm.hpp"
+#include "zb/zb_co2_cluster_desc.hpp"
 
 #include "lib_misc_helpers.hpp"
 
@@ -122,6 +123,7 @@ typedef struct {
 	zb_zcl_groups_attrs_t groups_attr;
 	zb_zcl_on_off_attrs_t on_off_attr;
 	zb_zcl_level_control_attrs_t level_control_attr;
+	zb::zb_zcl_co2_basic_t co2_attr;
 } bulb_device_ctx_t;
 
 /* Zigbee device application context storage. */
@@ -135,6 +137,7 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 		, dev_ctx.groups_attr
 		, dev_ctx.scenes_attr
 		, dev_ctx.level_control_attr
+		, dev_ctx.co2_attr
 		)
 );
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
