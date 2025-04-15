@@ -23,7 +23,7 @@ namespace zb
         using T = zb_zcl_co2_basic_t;
         return cluster_struct_desc_t<
             {.id = kZB_ZCL_CLUSTER_ID_CO2},
-                cluster_mem_desc_t{.m = &T::measured_value,.id = 0x0000}
+                cluster_mem_desc_t{.m = &T::measured_value,.id = 0x0000, .a=Access::RP}
             >{};
     }
 
