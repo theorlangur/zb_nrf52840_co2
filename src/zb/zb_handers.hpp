@@ -137,15 +137,18 @@ namespace zb
         {
             case ZB_ZCL_SET_ATTR_VALUE_CB_ID:
                 {
-                    auto *pSetVal = &pDevParam->cb_param.set_attr_value_param;
-                    static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
-                    [[maybe_unused]]zb_ret_t r = 
-                        ((handlers.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id) ? handlers.handler(pSetVal, pDevParam), RET_OK : RET_OK), ...);
-
-                    for(auto *pN : SetAttrValHandlingNode::g_List)
+                    if constexpr (sizeof...(handlers))
                     {
-                        if (pN->h.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id))
-                            pN->h.handler(pSetVal, pDevParam);
+                        auto *pSetVal = &pDevParam->cb_param.set_attr_value_param;
+                        static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
+                        [[maybe_unused]]zb_ret_t r = 
+                            ((handlers.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id) ? handlers.handler(pSetVal, pDevParam), RET_OK : RET_OK), ...);
+
+                        for(auto *pN : SetAttrValHandlingNode::g_List)
+                        {
+                            if (pN->h.fits(pDevParam->endpoint, pSetVal->cluster_id, pSetVal->attr_id))
+                                pN->h.handler(pSetVal, pDevParam);
+                        }
                     }
                 }
                 break;
@@ -176,14 +179,17 @@ namespace zb
     template<no_report_attr_handler_desc_t... handlers>
     void tpl_no_report_cb(zb_uint8_t ep, zb_uint16_t cluster_id, zb_uint16_t attr_id)
     {
-        static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
-        [[maybe_unused]]bool r = 
-            ((handlers.fits(ep, cluster_id, attr_id) ? handlers.handler(ep, cluster_id, attr_id), true : true), ...);
-
-        for(auto *pN : NoReportHandlingNode::g_List)
+        if constexpr (sizeof...(handlers))
         {
-            if (pN->h.fits(ep, cluster_id, attr_id))
-                pN->h.handler(ep, cluster_id, attr_id);
+            static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
+            [[maybe_unused]]bool r = 
+                ((handlers.fits(ep, cluster_id, attr_id) ? handlers.handler(ep, cluster_id, attr_id), true : true), ...);
+
+            for(auto *pN : NoReportHandlingNode::g_List)
+            {
+                if (pN->h.fits(ep, cluster_id, attr_id))
+                    pN->h.handler(ep, cluster_id, attr_id);
+            }
         }
     }
 
@@ -317,14 +323,17 @@ namespace zb
     template<report_attr_handler_desc_t... handlers>
     void tpl_report_cb(zb_zcl_addr_t *addr, zb_uint8_t ep, zb_uint16_t cluster_id, zb_uint16_t attr_id, zb_uint8_t attr_type, zb_uint8_t *value)
     {
-        static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
-        [[maybe_unused]]bool r = 
-            ((handlers.fits(ep, cluster_id, attr_id) ? handlers.handler(addr, ep, cluster_id, attr_id, attr_type, value), true : true), ...);
-
-        for(auto *pN : ReportHandlingNode::g_List)
+        if constexpr (sizeof...(handlers))
         {
-            if (pN->h.fits(ep, cluster_id, attr_id))
-                pN->h.handler(addr, ep, cluster_id, attr_id, attr_type, value);
+            static_assert(((handlers.handler != nullptr) && ...), "Invalid handler detected");
+            [[maybe_unused]]bool r = 
+                ((handlers.fits(ep, cluster_id, attr_id) ? handlers.handler(addr, ep, cluster_id, attr_id, attr_type, value), true : true), ...);
+
+            for(auto *pN : ReportHandlingNode::g_List)
+            {
+                if (pN->h.fits(ep, cluster_id, attr_id))
+                    pN->h.handler(addr, ep, cluster_id, attr_id, attr_type, value);
+            }
         }
     }
 }
