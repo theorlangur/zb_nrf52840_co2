@@ -212,8 +212,9 @@ void zboss_signal_handler(zb_bufid_t bufid)
 {
 	/* Update network status LED. */
 	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
-
-	ZB_ERROR_CHECK(zb::tpl_signal_handler<{}>(bufid));
+	ZB_ERROR_CHECK(zb::tpl_signal_handler<{
+			.on_can_sleep = []{ zb_sleep_now(); }
+			}>(bufid));
 }
 
 K_MUTEX_DEFINE(rtt_term_mutex);
