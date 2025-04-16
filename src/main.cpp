@@ -151,18 +151,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 	check_factory_reset_button(button_state, has_changed);
 }
 
-/**@brief Function for initializing additional PWM leds. */
-static void pwm_led_init(void)
-{
-	if (!device_is_ready(led_pwm.dev)) {
-		LOG_ERR("Error: PWM device %s is not ready",
-			led_pwm.dev->name);
-	}
-
-	//gpio_is_ready_dt(&led);
-	//gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-}
-
 /**@brief Function for initializing LEDs and Buttons. */
 static void configure_gpio(void)
 {
@@ -177,39 +165,6 @@ static void configure_gpio(void)
 	if (err) {
 		LOG_ERR("Cannot init LEDs (err: %d)", err);
 	}
-
-	pwm_led_init();
-}
-
-/**@brief Sets brightness of bulb luminous executive element
- *
- * @param[in] brightness_level Brightness level, allowed values 0 ... 255,
- *                             0 - turn off, 255 - full brightness.
- */
-static void light_bulb_set_brightness(zb_uint8_t brightness_level)
-{
-	uint32_t pulse = brightness_level * LED_PWM_PERIOD_US / 255U;
-
-	//if (brightness_level == 0)
-	//	gpio_pin_set_dt(&led, 0);
-	//else
-	//	gpio_pin_set_dt(&led, 1);
-	if (pwm_set_dt(&led_pwm, PWM_USEC(LED_PWM_PERIOD_US), PWM_USEC(pulse))) {
-		LOG_ERR("Pwm led 4 set fails:\n");
-		return;
-	}
-}
-
-/**@brief Function to toggle the identify LED - BULB_LED is used for this.
- *
- * @param  bufid  Unused parameter, required by ZBOSS scheduler API.
- */
-static void toggle_identify_led(zb_bufid_t bufid)
-{
-	static int blink_status;
-
-	light_bulb_set_brightness(((++blink_status) % 2) ? (255U) : (0U));
-	ZB_SCHEDULE_APP_ALARM(toggle_identify_led, bufid, ZB_MILLISECONDS_TO_BEACON_INTERVAL(100));
 }
 
 /**@brief Function for initializing all clusters attributes.
@@ -220,7 +175,7 @@ static void bulb_clusters_attr_init(void)
 	dev_ctx.basic_attr.zcl_version = ZB_ZCL_VERSION;
 	dev_ctx.basic_attr.manufacturer = BULB_INIT_BASIC_MANUF_NAME;
 	dev_ctx.basic_attr.model = BULB_INIT_BASIC_MODEL_ID;
-	dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::DC;
+	dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::Battery;
 }
 
 static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
@@ -256,7 +211,7 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 void zboss_signal_handler(zb_bufid_t bufid)
 {
 	/* Update network status LED. */
-	//zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
+	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
 
 	ZB_ERROR_CHECK(zb::tpl_signal_handler<{}>(bufid));
 }
