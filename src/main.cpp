@@ -256,7 +256,7 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 void zboss_signal_handler(zb_bufid_t bufid)
 {
 	/* Update network status LED. */
-	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
+	//zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
 
 	ZB_ERROR_CHECK(zb::tpl_signal_handler<{}>(bufid));
 }
