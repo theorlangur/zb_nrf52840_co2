@@ -46,10 +46,10 @@
 #define BULB_INIT_BASIC_HW_VERSION      11
 
 /* Manufacturer name (32 bytes). */
-#define BULB_INIT_BASIC_MANUF_NAME      "Nordic"
+#define BULB_INIT_BASIC_MANUF_NAME      "TheOrlangur"
 
 /* Model number assigned by manufacturer (32-bytes long string). */
-#define BULB_INIT_BASIC_MODEL_ID        "Dimable_Light_v0.1"
+#define BULB_INIT_BASIC_MODEL_ID        "CO2_v0.1"
 
 /* First 8 bytes specify the date of manufacturer of the device
  * in ISO 8601 format (YYYYMMDD). The rest (8 bytes) are manufacturer specific.
@@ -60,11 +60,6 @@
  * For possible values see section 3.2.2.2.8 of ZCL specification.
  */
 #define BULB_INIT_BASIC_POWER_SOURCE    ZB_ZCL_BASIC_POWER_SOURCE_DC_SOURCE
-
-/* Describes the physical location of the device (16 bytes).
- * May be modified during commissioning process.
- */
-#define BULB_INIT_BASIC_LOCATION_DESC   "Office desk"
 
 /* Describes the type of physical environment.
  * For possible values see section 3.2.2.2.10 of ZCL specification.
@@ -118,11 +113,6 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
  */
 typedef struct {
 	zb::zb_zcl_basic_names_t basic_attr;
-	zb_zcl_identify_attrs_t identify_attr;
-	zb_zcl_scenes_attrs_t scenes_attr;
-	zb_zcl_groups_attrs_t groups_attr;
-	zb_zcl_on_off_attrs_t on_off_attr;
-	zb_zcl_level_control_attrs_t level_control_attr;
 	zb::zb_zcl_co2_basic_t co2_attr;
 } bulb_device_ctx_t;
 
@@ -131,50 +121,11 @@ static bulb_device_ctx_t dev_ctx;
 
 constinit static auto dimmable_light_ctx = zb::make_device( 
 		zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
-		dev_ctx.identify_attr
-		, dev_ctx.on_off_attr
-		, dev_ctx.basic_attr
-		, dev_ctx.groups_attr
-		, dev_ctx.scenes_attr
-		, dev_ctx.level_control_attr
+		dev_ctx.basic_attr
 		, dev_ctx.co2_attr
 		)
 );
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
-
-/**@brief Starts identifying the device.
- *
- * @param  bufid  Unused parameter, required by ZBOSS scheduler API.
- */
-static void start_identifying(zb_bufid_t bufid)
-{
-	ZVUNUSED(bufid);
-
-	if (ZB_JOINED()) {
-		/* Check if endpoint is in identifying mode,
-		 * if not, put desired endpoint in identifying mode.
-		 */
-		if (dev_ctx.identify_attr.identify_time ==
-		    ZB_ZCL_IDENTIFY_IDENTIFY_TIME_DEFAULT_VALUE) {
-
-			zb_ret_t zb_err_code = zb_bdb_finding_binding_target(
-				DIMMABLE_LIGHT_ENDPOINT);
-
-			if (zb_err_code == RET_OK) {
-				LOG_INF("Enter identify mode");
-			} else if (zb_err_code == RET_INVALID_STATE) {
-				LOG_WRN("RET_INVALID_STATE - Cannot enter identify mode");
-			} else {
-				ZB_ERROR_CHECK(zb_err_code);
-			}
-		} else {
-			LOG_INF("Cancel identify mode");
-			zb_bdb_finding_binding_target_cancel();
-		}
-	} else {
-		LOG_WRN("Device not in a network - cannot enter identify mode");
-	}
-}
 
 /**@brief Callback for button events.
  *
@@ -193,9 +144,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 				LOG_DBG("After Factory Reset - ignore button release");
 			} else   {
 				/* Button released before Factory Reset */
-
-				/* Start identification mode */
-				ZB_SCHEDULE_APP_CALLBACK(start_identifying, 0);
 			}
 		}
 	}
@@ -252,36 +200,6 @@ static void light_bulb_set_brightness(zb_uint8_t brightness_level)
 	}
 }
 
-/**@brief Function for setting the light bulb brightness.
- *
- * @param[in] new_level   Light bulb brightness value.
- */
-static void level_control_set_value(zb_uint16_t new_level)
-{
-	LOG_INF("Set level value: %i", new_level);
-
-	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = new_level;
-
-	light_bulb_set_brightness(new_level);
-}
-
-/**@brief Function for turning ON/OFF the light bulb.
- *
- * @param[in]   on   Boolean light bulb state.
- */
-static void on_off_set_value(zb_bool_t on)
-{
-	LOG_INF("Set ON/OFF value: %i", on);
-
-	dim_ep.attr<&zb_zcl_on_off_attrs_t::on_off>() = on;
-
-	if (on) {
-		light_bulb_set_brightness(dev_ctx.level_control_attr.current_level);
-	} else {
-		light_bulb_set_brightness(0U);
-	}
-}
-
 /**@brief Function to toggle the identify LED - BULB_LED is used for this.
  *
  * @param  bufid  Unused parameter, required by ZBOSS scheduler API.
@@ -294,30 +212,6 @@ static void toggle_identify_led(zb_bufid_t bufid)
 	ZB_SCHEDULE_APP_ALARM(toggle_identify_led, bufid, ZB_MILLISECONDS_TO_BEACON_INTERVAL(100));
 }
 
-/**@brief Function to handle identify notification events on the first endpoint.
- *
- * @param  bufid  Unused parameter, required by ZBOSS scheduler API.
- */
-static void identify_cb(zb_bufid_t bufid)
-{
-	zb_ret_t zb_err_code;
-
-	if (bufid) {
-		/* Schedule a self-scheduling function that will toggle the LED. */
-		ZB_SCHEDULE_APP_CALLBACK(toggle_identify_led, bufid);
-	} else {
-		/* Cancel the toggling function alarm and restore current Zigbee LED state. */
-		zb_err_code = ZB_SCHEDULE_APP_ALARM_CANCEL(toggle_identify_led, ZB_ALARM_ANY_PARAM);
-		ZVUNUSED(zb_err_code);
-
-		if (dev_ctx.on_off_attr.on_off) {
-			light_bulb_set_brightness(dev_ctx.level_control_attr.current_level);
-		} else {
-			light_bulb_set_brightness(0U);
-		}
-	}
-}
-
 /**@brief Function for initializing all clusters attributes.
  */
 static void bulb_clusters_attr_init(void)
@@ -327,34 +221,6 @@ static void bulb_clusters_attr_init(void)
 	dev_ctx.basic_attr.manufacturer = BULB_INIT_BASIC_MANUF_NAME;
 	dev_ctx.basic_attr.model = BULB_INIT_BASIC_MODEL_ID;
 	dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::DC;
-
-	/* Identify cluster attributes data. */
-	dev_ctx.identify_attr.identify_time =
-		ZB_ZCL_IDENTIFY_IDENTIFY_TIME_DEFAULT_VALUE;
-
-	/* On/Off cluster attributes data. */
-	dev_ctx.on_off_attr.on_off = (zb_bool_t)ZB_ZCL_ON_OFF_IS_ON;
-
-	dev_ctx.level_control_attr.current_level =
-		ZB_ZCL_LEVEL_CONTROL_LEVEL_MAX_VALUE;
-	dev_ctx.level_control_attr.remaining_time =
-		ZB_ZCL_LEVEL_CONTROL_REMAINING_TIME_DEFAULT_VALUE;
-
-	dim_ep.attr<&zb_zcl_on_off_attrs_t::on_off>() = dev_ctx.on_off_attr.on_off;
-	dim_ep.attr<&zb_zcl_level_control_attrs_t::current_level>() = dev_ctx.level_control_attr.current_level;
-}
-
-static void typed_set_on_off(zb_bool_t v)
-{
-	LOG_INF("on/off attribute setting to %hd", v);
-	on_off_set_value(v);
-}
-
-static void typed_set_level(uint16_t value)
-{
-	LOG_INF("level control attribute setting to %hd",
-			value);
-	level_control_set_value(value);
 }
 
 static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
@@ -368,12 +234,12 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 
 	switch (device_cb_param->device_cb_id) {
 	case ZB_ZCL_LEVEL_CONTROL_SET_VALUE_CB_ID:
-		LOG_INF("Level control setting to %d",
-			device_cb_param->cb_param.level_control_set_value_param
-			.new_value);
-		level_control_set_value(
-			device_cb_param->cb_param.level_control_set_value_param
-			.new_value);
+		//LOG_INF("Level control setting to %d",
+		//	device_cb_param->cb_param.level_control_set_value_param
+		//	.new_value);
+		//level_control_set_value(
+		//	device_cb_param->cb_param.level_control_set_value_param
+		//	.new_value);
 		break;
 	default:
 		break;
@@ -426,13 +292,7 @@ int main(void)
 
 	/* Register callback for handling ZCL commands. */
 	auto dev_cb = zb::tpl_device_cb<
-	    {test_device_cb}, //default generic
-		zb::set_attr_val_gen_desc_t{
-			dim_ep.handler_filter_for_attribute<&zb_zcl_on_off_attrs_t::on_off>(),
-			zb::to_handler_v<&typed_set_on_off>},
-		zb::set_attr_val_gen_desc_t{
-			dim_ep.handler_filter_for_attribute<&zb_zcl_level_control_attrs_t::current_level>(),
-			zb::to_handler_v<&typed_set_level>}
+	    {test_device_cb} //default generic
 	>;
 	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
 
@@ -442,14 +302,10 @@ int main(void)
 	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
 
 	bulb_clusters_attr_init();
-	level_control_set_value(dev_ctx.level_control_attr.current_level);
 
 	//g_TestAlarm.Setup([err]{
 	//		level_control_set_value(err);
 	//		}, 5000);
-
-	/* Register handler to identify notifications. */
-	ZB_AF_SET_IDENTIFY_NOTIFICATION_HANDLER(DIMMABLE_LIGHT_ENDPOINT, identify_cb);
 
 	/* Settings should be loaded after zcl_scenes_init */
 	err = settings_load();
