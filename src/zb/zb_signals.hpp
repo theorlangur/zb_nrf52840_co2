@@ -36,6 +36,8 @@ namespace zb
             template<class Lambda> requires (!std::convertible_to<Lambda, T>)
             constexpr handler_mem_t(Lambda h):m_SimpleHandler(h) {}
             constexpr handler_mem_t(T h):m_TypedHandler(h) {}
+            template<class LambdaT> requires std::convertible_to<LambdaT, T>
+            constexpr handler_mem_t(LambdaT h):m_TypedHandler(h) {}
 
             constexpr void operator=(simple_handler_t h) { m_SimpleHandler = h; }
             constexpr void operator=(T h) { m_TypedHandler = h; }
