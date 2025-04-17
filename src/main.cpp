@@ -203,6 +203,13 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
 }
 
+zb::ZbTimerExt<> co2_measurements_timer;
+bool do_co2_measurement()
+{
+	//do
+	return true;
+}
+
 /**@brief Zigbee stack event handler.
  *
  * @param[in]   bufid   Reference to the Zigbee stack buffer
@@ -212,9 +219,20 @@ void zboss_signal_handler(zb_bufid_t bufid)
 {
 	/* Update network status LED. */
 	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
-	ZB_ERROR_CHECK(zb::tpl_signal_handler<{
+	auto ret = zb::tpl_signal_handler<{
+			.on_dev_reboot = [](zb_ret_t status){
+				if (status == RET_OK)
+				{
+					//start timer
+					co2_measurements_timer.Setup(do_co2_measurement, 30 * 1000);
+				}else
+				{
+					//process error
+				}
+			},
 			.on_can_sleep = zb_sleep_now
-			}>(bufid));
+			}>(bufid);
+	ZB_ERROR_CHECK(ret);
 }
 
 K_MUTEX_DEFINE(rtt_term_mutex);
