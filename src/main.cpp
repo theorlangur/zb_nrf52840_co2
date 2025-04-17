@@ -203,10 +203,12 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
 }
 
-zb::ZbTimerExt<> co2_measurements_timer;
-bool do_co2_measurement()
+float g_measured_co2_value = 420.f;
+zb::ZbTimer co2_measurements_timer;
+bool do_co2_measurement(void*)
 {
-	//do
+	dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = g_measured_co2_value / 1'000'000.f;
+	g_measured_co2_value += 10.f;
 	return true;
 }
 
@@ -224,7 +226,7 @@ void zboss_signal_handler(zb_bufid_t bufid)
 				if (status == RET_OK)
 				{
 					//start timer
-					co2_measurements_timer.Setup(do_co2_measurement, 30 * 1000);
+					co2_measurements_timer.Setup(do_co2_measurement, nullptr, 30 * 1000);
 				}else
 				{
 					//process error
@@ -246,7 +248,7 @@ extern "C" void zephyr_rtt_mutex_unlock()
 	k_mutex_unlock(&rtt_term_mutex);
 }
 
-zb::ZbAlarmExt<> g_TestAlarm;
+//zb::ZbAlarmExt<> g_TestAlarm;
 
 int main(void)
 {
