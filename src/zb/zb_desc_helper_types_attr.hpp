@@ -61,6 +61,7 @@ namespace zb
 
         constexpr static bool is_role(Role r) { return Tag::info().role == r; }
         constexpr static size_t attributes_with_access(Access r) { return Tag::count_members_with_access(r); }
+        constexpr static size_t cvc_attributes() { return Tag::count_cvc_members(); }
         constexpr static auto info() { return Tag::info(); }
 
         constexpr zb_zcl_cluster_desc_t desc()

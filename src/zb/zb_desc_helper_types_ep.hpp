@@ -85,7 +85,7 @@ namespace zb
                 { T::info().id... }//rest
             },
             rep_ctx{},
-            lev_ctrl_ctx{},
+            cvc_alarm_ctx{},
             ep{
                 .ep_id = i.ep,
                 .profile_id = ZB_AF_HA_PROFILE_ID,
@@ -98,8 +98,8 @@ namespace zb
                 .simple_desc = &simple_desc,
                 .rep_info_count = Clusters::reporting_attributes_count(),
                 .reporting_info = rep_ctx,
-                .cvc_alarm_count = Clusters::cvc_level_ctrl_attributes_count(),
-                .cvc_alarm_info = lev_ctrl_ctx
+                .cvc_alarm_count = Clusters::cvc_attributes_count(),
+                .cvc_alarm_info = cvc_alarm_ctx
             }
         {
         }
@@ -141,7 +141,7 @@ namespace zb
 
         SimpleDesc simple_desc;
         zb_zcl_reporting_info_t rep_ctx[Clusters::reporting_attributes_count()];
-        zb_zcl_cvc_alarm_variables_t lev_ctrl_ctx[Clusters::cvc_level_ctrl_attributes_count()];
+        zb_zcl_cvc_alarm_variables_t cvc_alarm_ctx[Clusters::cvc_attributes_count()];
         zb_af_endpoint_desc_t ep;
     };
 }

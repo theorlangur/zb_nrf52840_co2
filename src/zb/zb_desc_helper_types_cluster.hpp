@@ -19,6 +19,29 @@ namespace zb
         Type type = TypeToTypeId<MemType>();
 
         constexpr inline bool has_access(Access _a) const { return a & _a; } 
+        constexpr inline bool is_cvc() const { 
+            if (a & Access::Report)
+            {
+                switch(type)
+                {
+                    case Type::S8:
+                    case Type::U8:
+                    case Type::S16:
+                    case Type::U16:
+                    case Type::S24:
+                    case Type::U24:
+                    case Type::S32:
+                    case Type::U32:
+                    case Type::Float:
+                    case Type::HalfFloat:
+                    case Type::Double:
+                        return true;
+                    default:
+                        break;
+                }
+            }
+            return false;
+        } 
     };
 
     template<auto memPtr, auto...ClusterMemDescriptions>
@@ -57,6 +80,7 @@ namespace zb
         static constexpr inline zb_uint16_t rev() { return ci.rev; }
         static constexpr inline auto info() { return ci; }
         static constexpr inline size_t count_members_with_access(Access a) { return ((size_t)ClusterMemDescriptions.has_access(a) + ... + 0); }
+        static constexpr inline size_t count_cvc_members() { return ((size_t)ClusterMemDescriptions.is_cvc() + ... + 0); }
 
         template<auto memPtr>
         static constexpr inline auto get_member_description() { return find_cluster_mem_desc_t<memPtr, ClusterMemDescriptions...>::mem_desc(); }
@@ -93,7 +117,8 @@ namespace zb
         void operator=(TClusterList &&) = delete;
 
         static constexpr size_t reporting_attributes_count() { return (T::attributes_with_access(Access::Report) + ... + 0); }
-        static constexpr size_t cvc_level_ctrl_attributes_count() { return ((T::info().id == ZB_ZCL_CLUSTER_ID_LEVEL_CONTROL ? T::attributes_with_access(Access::Report) : 0) + ... + 0); }
+        static constexpr size_t cvc_attributes_count() { return (T::cvc_attributes() + ... + 0); }
+
         static constexpr size_t server_cluster_count() { return (T::is_role(Role::Server) + ... + 0); }
         static constexpr size_t client_cluster_count() { return (T::is_role(Role::Client) + ... + 0); }
         static constexpr bool has_info(cluster_info_t ci) { return ((T::info() == ci) || ...); }
