@@ -26,14 +26,14 @@ namespace zb
     };
 
     
-    template<cluster_info_t ci, auto mem_desc> requires requires { typename decltype(mem_desc)::MemT; }
+    template<cluster_info_t ci, auto mem_desc, bool withCheck> requires requires { typename decltype(mem_desc)::MemT; }
     struct AttributeAccess
     {
         using MemT = decltype(mem_desc)::MemT;
 
         auto operator=(MemT const& v)
         {
-            return zb_zcl_set_attr_val(ep.ep_id, ci.id, (zb_uint8_t)ci.role, mem_desc.id, (zb_uint8_t*)&v, ZB_TRUE);
+            return zb_zcl_set_attr_val(ep.ep_id, ci.id, (zb_uint8_t)ci.role, mem_desc.id, (zb_uint8_t*)&v, withCheck);
         }
 
         zb_af_endpoint_desc_t &ep;
@@ -104,8 +104,9 @@ namespace zb
         {
         }
 
-        template<auto memPtr>
-        auto attr()
+    private:
+        template<auto memPtr, bool checked>
+        auto attr_raw()
         {
             using MemPtrType = decltype(memPtr);
             static_assert(mem_ptr_traits<MemPtrType>::is_mem_ptr, "Only member pointer is allowed");
@@ -115,8 +116,15 @@ namespace zb
             using ClusterDescType = decltype(get_cluster_description<ClassType>());
             static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
 
-            return AttributeAccess<ClusterDescType::info(), ClusterDescType::template get_member_description<memPtr>()>{ep};
+            return AttributeAccess<ClusterDescType::info(), ClusterDescType::template get_member_description<memPtr>(), checked>{ep};
         }
+
+    public:
+        template<auto memPtr>
+        auto attr() { return attr_raw<memPtr, false>(); }
+
+        template<auto memPtr>
+        auto attr_checked() { return attr_raw<memPtr, true>(); }
 
         template<auto memPtr>
         constexpr EPClusterAttributeDesc_t handler_filter_for_attribute()
