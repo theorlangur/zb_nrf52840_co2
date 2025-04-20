@@ -18,6 +18,11 @@
             "command": "./flash.exp"
         },
         {
+            "label": "Bootloader Flash OpenOCD",
+            "type": "shell",
+            "command": "./flash_boot.exp"
+        },
+        {
             "label": "Reset Halt OpenOCD",
             "type": "shell",
             "command": "./reset_halt.exp"

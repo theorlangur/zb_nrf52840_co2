@@ -10,6 +10,9 @@ spawn telnet $address $port
 # Wait for the prompt or any specific output
 expect "Open On-Chip Debugger"
 
+send "reset halt\r"
+expect "xPSR"
+
 # Send the 'reset halt' command
 send "program build/zbco2/zephyr/zephyr.bin 0x26000 reset\r"
 
