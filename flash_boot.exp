@@ -1,0 +1,32 @@
+#!/usr/bin/expect -f
+
+# Set the address and port
+set address "localhost"
+set port "4444"
+
+# Spawn the telnet process
+spawn telnet $address $port
+
+# Wait for the prompt or any specific output
+expect "Open On-Chip Debugger"
+
+send "reset halt\r"
+expect "xPSR"
+
+## Send the 'reset halt' command
+#send "flash write_image erase bootloader/bootloader_0_9.hex\r"
+## Wait for the next prompt or specific output
+#expect "bytes from file bootloader/bootloader_0_9.hex"
+
+# Send the 'reset halt' command
+send "flash write_image erase bootloader/bootloader_0_6.hex\r"
+# Wait for the next prompt or specific output
+expect "bytes from file bootloader/bootloader_0_6.hex"
+
+
+# Send the 'exit' command
+send "exit\r"
+
+# Wait for the process to close
+expect eof
+
