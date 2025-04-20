@@ -17,7 +17,11 @@
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
-#include <zephyr/drivers/gpio.h>
+//#include <zephyr/drivers/gpio.h>
+
+//#include <app_event_manager.h>
+//#define MODULE main
+//#include <caf/events/module_state_event.h>
 
 #define FORCE_FMT
 #define PRINTF_FUNC(...) printk(__VA_ARGS__)
@@ -29,6 +33,8 @@
 #include "zb/zb_co2_cluster_desc.hpp"
 
 #include "lib_misc_helpers.hpp"
+
+#include <helpers/nrfx_reset_reason.h>
 
 #define RUN_STATUS_LED                  DK_LED1
 #define RUN_LED_BLINK_INTERVAL          1000
@@ -99,9 +105,9 @@ static const struct pwm_dt_spec led_pwm = PWM_DT_SPEC_GET(PWM_DK_LED4_NODE);
 /* Led PWM period, calculated for 100 Hz signal - in microseconds. */
 #define LED_PWM_PERIOD_US               (USEC_PER_SEC / 100U)
 
-#ifndef ZB_ROUTER_ROLE
-#error Define ZB_ROUTER_ROLE to compile router source code.
-#endif
+//#ifndef ZB_ROUTER_ROLE
+//#error Define ZB_ROUTER_ROLE to compile router source code.
+//#endif
 
 /* Button to start Factory Reset */
 #define FACTORY_RESET_BUTTON IDENTIFY_MODE_BUTTON
@@ -207,7 +213,14 @@ float g_measured_co2_value = 420.f;
 zb::ZbTimer co2_measurements_timer;
 bool do_co2_measurement(void*)
 {
-	dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = g_measured_co2_value / 1'000'000.f;
+	auto r = (dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = g_measured_co2_value / 1'000'000.f);
+	if (r != ZB_ZCL_STATUS_SUCCESS)
+	{
+		FMT_PRINTLN("Couldn't write attribute with status: {:x}\n", r);
+	}else
+	{
+		FMT_PRINTLN("Set co2 to: {}\n", g_measured_co2_value);
+	}
 	g_measured_co2_value += 10.f;
 	return true;
 }
@@ -252,6 +265,12 @@ extern "C" void zephyr_rtt_mutex_unlock()
 
 int main(void)
 {
+	//if (app_event_manager_init()) {
+	//	LOG_ERR("Application Event Manager initialization failed");
+	//} else {
+	//	module_set_state(MODULE_STATE_READY);
+	//}
+
 	int blink_status = 0;
 	int err;
 
@@ -259,12 +278,18 @@ int main(void)
 	LOG_INF("Starting ZBOSS Light Bulb example");
 
 	/* Initialize */
-	configure_gpio();
+	//configure_gpio();
 	err = settings_subsys_init();
 	if (err) {
 		LOG_ERR("settings initialization failed");
 	}
 	register_factory_reset_button(FACTORY_RESET_BUTTON);
+
+	zigbee_erase_persistent_storage(true);
+	zb_set_rx_on_when_idle(false);
+	zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
+	zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(30000));
+	zigbee_configure_sleepy_behavior(true);
 
 	/* Register callback for handling ZCL commands. */
 	auto dev_cb = zb::tpl_device_cb<
@@ -295,7 +320,12 @@ int main(void)
 	LOG_INF("ZBOSS Light Bulb example started");
 
 	while (1) {
-		dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
-		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+		k_sleep(K_FOREVER);
 	}
+	//while (1) {
+	//	//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
+	//	k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+	//	k_cpu_idle();
+	//}
+	return 0;
 }
