@@ -18,6 +18,7 @@
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
 //#include <zephyr/drivers/gpio.h>
+#include <ram_pwrdn.h>
 
 #define FORCE_FMT
 #define PRINTF_FUNC(...) printk(__VA_ARGS__)
@@ -295,6 +296,7 @@ int main(void)
 		LOG_ERR("settings loading failed");
 	}
 
+	power_down_unused_ram();
 	/* Start Zigbee default thread */
 	zigbee_enable();
 
