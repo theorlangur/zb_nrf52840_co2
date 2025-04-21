@@ -19,10 +19,6 @@
 #include <zephyr/settings/settings.h>
 //#include <zephyr/drivers/gpio.h>
 
-//#include <app_event_manager.h>
-//#define MODULE main
-//#include <caf/events/module_state_event.h>
-
 #define FORCE_FMT
 #define PRINTF_FUNC(...) printk(__VA_ARGS__)
 
@@ -33,8 +29,6 @@
 #include "zb/zb_co2_cluster_desc.hpp"
 
 #include "lib_misc_helpers.hpp"
-
-#include <helpers/nrfx_reset_reason.h>
 
 #define RUN_STATUS_LED                  DK_LED1
 #define RUN_LED_BLINK_INTERVAL          1000
@@ -61,11 +55,6 @@
  * in ISO 8601 format (YYYYMMDD). The rest (8 bytes) are manufacturer specific.
  */
 #define BULB_INIT_BASIC_DATE_CODE       "20200329"
-
-/* Type of power sources available for the device.
- * For possible values see section 3.2.2.2.8 of ZCL specification.
- */
-#define BULB_INIT_BASIC_POWER_SOURCE    ZB_ZCL_BASIC_POWER_SOURCE_DC_SOURCE
 
 /* Describes the type of physical environment.
  * For possible values see section 3.2.2.2.10 of ZCL specification.
@@ -225,6 +214,18 @@ bool do_co2_measurement(void*)
 	return true;
 }
 
+void measure_co2_and_schedule(zb_ret_t status)
+{
+	if (status == RET_OK)
+	{
+		//start timer
+		co2_measurements_timer.Setup(do_co2_measurement, nullptr, 30 * 1000);
+	}else
+	{
+		//process error
+	}
+}
+
 /**@brief Zigbee stack event handler.
  *
  * @param[in]   bufid   Reference to the Zigbee stack buffer
@@ -235,16 +236,8 @@ void zboss_signal_handler(zb_bufid_t bufid)
 	/* Update network status LED. */
 	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
 	auto ret = zb::tpl_signal_handler<{
-			.on_dev_reboot = [](zb_ret_t status){
-				if (status == RET_OK)
-				{
-					//start timer
-					co2_measurements_timer.Setup(do_co2_measurement, nullptr, 30 * 1000);
-				}else
-				{
-					//process error
-				}
-			},
+			.on_dev_reboot = measure_co2_and_schedule,
+			.on_steering = measure_co2_and_schedule,
 			.on_can_sleep = zb_sleep_now
 			}>(bufid);
 	ZB_ERROR_CHECK(ret);
@@ -261,16 +254,8 @@ extern "C" void zephyr_rtt_mutex_unlock()
 	k_mutex_unlock(&rtt_term_mutex);
 }
 
-//zb::ZbAlarmExt<> g_TestAlarm;
-
 int main(void)
 {
-	//if (app_event_manager_init()) {
-	//	LOG_ERR("Application Event Manager initialization failed");
-	//} else {
-	//	module_set_state(MODULE_STATE_READY);
-	//}
-
 	int blink_status = 0;
 	int err;
 
@@ -285,7 +270,7 @@ int main(void)
 	}
 	register_factory_reset_button(FACTORY_RESET_BUTTON);
 
-	zigbee_erase_persistent_storage(true);
+	zigbee_erase_persistent_storage(false);
 	zb_set_rx_on_when_idle(false);
 	zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
 	zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(30000));
@@ -303,10 +288,6 @@ int main(void)
 	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
 
 	bulb_clusters_attr_init();
-
-	//g_TestAlarm.Setup([err]{
-	//		level_control_set_value(err);
-	//		}, 5000);
 
 	/* Settings should be loaded after zcl_scenes_init */
 	err = settings_load();
