@@ -22,6 +22,7 @@
 
 //#define FORCE_FMT
 //#define PRINTF_FUNC(...) printk(__VA_ARGS__)
+#define ALARM_LIST_LOCK_TYPE thread::DummyLock
 
 #include "zb/zb_main.hpp"
 #include "zb/zb_std_cluster_desc.hpp"
