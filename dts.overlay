@@ -1,0 +1,9 @@
+&i2c1 {
+    status = "disabled";
+};
+&adc {
+    status = "disabled";
+};
+&bt_hci_sdc {
+    status = "disabled";
+};
