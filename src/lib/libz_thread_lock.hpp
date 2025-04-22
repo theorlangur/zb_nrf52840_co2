@@ -14,6 +14,12 @@ namespace thread{
         k_spinlock m_Lock{};
     };
 
+    struct DummyLock
+    {
+        k_spinlock_key_t lock() { return {}; }
+        void unlock(k_spinlock_key_t k) {}
+    };
+
     class ILockable
     {
     public:
