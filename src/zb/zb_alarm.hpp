@@ -15,7 +15,7 @@ namespace zb
     {
         static constexpr uint8_t kCounterOfDeathInactive = 0xff;
         static constexpr uint8_t kCounterOfDeathValue = 6;
-        static constexpr uint8_t kLowOnHandlesThreshold = 28;
+        static constexpr uint8_t kLowOnHandlesThreshold = 2;
 
         static bool g_RunningOutOfHandles;
         static uint8_t g_CounterOfDeath;
