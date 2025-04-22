@@ -22,7 +22,7 @@ namespace zb
 
         struct TimerList
         {
-            static constexpr uint8_t kFull = 33;
+            static constexpr uint8_t kFull = 9;
             static constexpr uint8_t kMaxSize = kFull - 1;
 
             using handle_t = uint8_t;
