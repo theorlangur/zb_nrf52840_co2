@@ -35,15 +35,19 @@ namespace thread{
         virtual void unlock() override {}
     };
 
+    template<class L>
     struct LockGuard
     {
-        LockGuard(SpinLock *pL):m_pLock(pL) { if (pL) m_Key = pL->lock(); }
-        LockGuard(SpinLock &l):LockGuard(&l){}
+        LockGuard(L *pL):m_pLock(pL) { if (pL) m_Key = pL->lock(); }
+        LockGuard(L &l):LockGuard(&l){}
         ~LockGuard() { if (m_pLock) m_pLock->unlock(m_Key); }
     private:
-        SpinLock *m_pLock;
+        L *m_pLock;
         k_spinlock_key_t m_Key;
     };
-
+    template<class L>
+    LockGuard(L *)->LockGuard<L>;
+    template<class L>
+    LockGuard(L &)->LockGuard<L>;
 }
 #endif

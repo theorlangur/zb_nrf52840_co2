@@ -9,6 +9,10 @@
 #include "../lib/libz_thread_lock.hpp"
 #include "zboss_api_core.h"
 
+#ifndef ALARM_LIST_LOCK_TYPE
+#define ALARM_LIST_LOCK_TYPE thread::SpinLock
+#endif
+
 namespace zb
 {
     struct ZbAlarm
@@ -85,7 +89,7 @@ namespace zb
             handle_t head;
             ListEntry entries[kMaxSize];
 
-            static thread::SpinLock g_AlarmLock;
+            static ALARM_LIST_LOCK_TYPE g_AlarmLock;
         };
         constinit static TimerList g_TimerList;
 
@@ -187,7 +191,7 @@ namespace zb
 
     inline bool ZbAlarm::g_RunningOutOfHandles = false;
     inline uint8_t ZbAlarm::g_CounterOfDeath = kCounterOfDeathInactive;
-    inline thread::SpinLock ZbAlarm::TimerList::g_AlarmLock;
+    inline ALARM_LIST_LOCK_TYPE ZbAlarm::TimerList::g_AlarmLock;
     inline constinit ZbAlarm::TimerList ZbAlarm::g_TimerList = ZbAlarm::TimerList::Create();
 
     struct ZbTimer: ZbAlarm
