@@ -14,6 +14,7 @@
 #include <zephyr/device.h>
 #include <soc.h>
 #include <zephyr/drivers/pwm.h>
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
@@ -124,6 +125,55 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 );
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
 
+constinit const struct device *co2sensor = nullptr;
+
+enum class CO2Commands
+{
+	Fetch
+};
+
+/* Message queue configurations */
+struct co2_thread_msg {
+	CO2Commands cmd;
+};
+
+constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(co2_thread_msg);
+constexpr size_t MSGQ_CO2_LENGTH = 2;
+
+K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
+
+constexpr size_t CO2_THREAD_STACK_SIZE = 256;
+constexpr size_t CO2_THREAD_PRIORITY=7;
+
+void co2_thread_entry(void *, void *, void *);
+void update_co2_readings_in_zigbee(uint8_t id);
+
+K_THREAD_DEFINE(co2_thread, CO2_THREAD_STACK_SIZE,
+                co2_thread_entry, NULL, NULL, NULL,
+                CO2_THREAD_PRIORITY, 0, -1);
+
+void co2_thread_entry(void *, void *, void *)
+{
+	CO2Commands cmd;
+	while(1)
+	{
+		k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
+		switch(cmd)
+		{
+			using enum CO2Commands;
+			case Fetch:
+			if (device_is_ready(co2sensor)) {
+				if (sensor_sample_fetch(co2sensor) == 0)
+				{
+					//post to zigbee thread
+					zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
+				}
+			}
+			break;
+		}
+	}
+}
+
 /**@brief Callback for button events.
  *
  * @param[in]   button_state  Bitmask containing the state of the buttons.
@@ -200,32 +250,24 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
 }
 
-float g_measured_co2_value = 420.f;
-zb::ZbTimer co2_measurements_timer;
-bool do_co2_measurement(void*)
+void measure_co2_and_schedule()
 {
-	auto r = (dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = g_measured_co2_value / 1'000'000.f);
-	if (r != ZB_ZCL_STATUS_SUCCESS)
-	{
-		FMT_PRINTLN("Couldn't write attribute with status: {:x}\n", r);
-	}else
-	{
-		FMT_PRINTLN("Set co2 to: {}\n", g_measured_co2_value);
-	}
-	g_measured_co2_value += 10.f;
-	return true;
-}
-
-void measure_co2_and_schedule(zb_ret_t status)
-{
-	if (status == RET_OK)
-	{
-		//start timer
-		co2_measurements_timer.Setup(do_co2_measurement, nullptr, 30 * 1000);
-	}else
+	auto cmd = CO2Commands::Fetch;
+	int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+	if (res != RET_OK)
 	{
 		//process error
 	}
+}
+
+zb::ZbAlarmExt16 g_Co2Alarm;
+void update_co2_readings_in_zigbee(uint8_t id)
+{
+	sensor_value v;
+	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
+	dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = float(v.val1) / 1'000'000.f;
+	//schedule next
+	g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
 }
 
 /**@brief Zigbee stack event handler.
@@ -263,6 +305,12 @@ int main(void)
 
 	FMT_PRINTLN("Test print");
 	LOG_INF("Starting ZBOSS Light Bulb example");
+
+	co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
+	//if (!device_is_ready(co2sensor)) {
+	//	printk("Sensor not ready");
+	//	return 0;
+	//}
 
 	/* Initialize */
 	//configure_gpio();
