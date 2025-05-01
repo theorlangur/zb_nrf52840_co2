@@ -37,6 +37,10 @@ struct zb_zcl_basic_min_t
     PowerSource power_source;
 } ;
 
+struct zb_zcl_on_off_attrs_client_t
+{
+};
+
 template<> constexpr auto get_cluster_description<zb_zcl_basic_min_t>()
 {
 	using T = zb_zcl_basic_min_t;
@@ -98,6 +102,13 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_t>()
 	return cluster_struct_desc_t<
 		{.id = ZB_ZCL_CLUSTER_ID_ON_OFF},
 		cluster_mem_desc_t{.m = &T::on_off, .id = ZB_ZCL_ATTR_ON_OFF_ON_OFF_ID, .a = Access::RPS, .type=Type::Bool}
+	>{};
+}
+
+template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_client_t>()
+{
+	return cluster_struct_desc_t<
+		{.id = ZB_ZCL_CLUSTER_ID_ON_OFF, .role = Role::Client}
 	>{};
 }
 
