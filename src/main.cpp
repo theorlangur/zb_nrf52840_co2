@@ -110,31 +110,32 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
  * Stores all settings and static values.
  */
 typedef struct {
-	zb::zb_zcl_basic_names_t basic_attr;
-	zb::zb_zcl_co2_basic_t co2_attr;
+    zb::zb_zcl_basic_names_t basic_attr;
+    zb::zb_zcl_co2_basic_t co2_attr;
 } bulb_device_ctx_t;
 
 /* Zigbee device application context storage. */
 static bulb_device_ctx_t dev_ctx;
 
 constinit static auto dimmable_light_ctx = zb::make_device( 
-		zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
-		dev_ctx.basic_attr
-		, dev_ctx.co2_attr
-		)
-);
+	zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
+	    dev_ctx.basic_attr
+	    , dev_ctx.co2_attr
+	    )
+	);
+
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
 
 constinit const struct device *co2sensor = nullptr;
 
 enum class CO2Commands
 {
-	Fetch
+    Fetch
 };
 
 /* Message queue configurations */
 struct co2_thread_msg {
-	CO2Commands cmd;
+    CO2Commands cmd;
 };
 
 constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(co2_thread_msg);
@@ -149,29 +150,29 @@ void co2_thread_entry(void *, void *, void *);
 void update_co2_readings_in_zigbee(uint8_t id);
 
 K_THREAD_DEFINE(co2_thread, CO2_THREAD_STACK_SIZE,
-                co2_thread_entry, NULL, NULL, NULL,
-                CO2_THREAD_PRIORITY, 0, -1);
+	co2_thread_entry, NULL, NULL, NULL,
+	CO2_THREAD_PRIORITY, 0, -1);
 
 void co2_thread_entry(void *, void *, void *)
 {
-	CO2Commands cmd;
-	while(1)
+    CO2Commands cmd;
+    while(1)
+    {
+	k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
+	switch(cmd)
 	{
-		k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
-		switch(cmd)
+	    using enum CO2Commands;
+	    case Fetch:
+	    if (device_is_ready(co2sensor)) {
+		if (sensor_sample_fetch(co2sensor) == 0)
 		{
-			using enum CO2Commands;
-			case Fetch:
-			if (device_is_ready(co2sensor)) {
-				if (sensor_sample_fetch(co2sensor) == 0)
-				{
-					//post to zigbee thread
-					zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
-				}
-			}
-			break;
+		    //post to zigbee thread
+		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 		}
+	    }
+	    break;
 	}
+    }
 }
 
 /**@brief Callback for button events.
@@ -181,93 +182,93 @@ void co2_thread_entry(void *, void *, void *)
  */
 static void button_changed(uint32_t button_state, uint32_t has_changed)
 {
-	if (IDENTIFY_MODE_BUTTON & has_changed) {
-		if (IDENTIFY_MODE_BUTTON & button_state) {
-			/* Button changed its state to pressed */
-		} else {
-			/* Button changed its state to released */
-			if (was_factory_reset_done()) {
-				/* The long press was for Factory Reset */
-				LOG_DBG("After Factory Reset - ignore button release");
-			} else   {
-				/* Button released before Factory Reset */
-			}
-		}
+    if (IDENTIFY_MODE_BUTTON & has_changed) {
+	if (IDENTIFY_MODE_BUTTON & button_state) {
+	    /* Button changed its state to pressed */
+	} else {
+	    /* Button changed its state to released */
+	    if (was_factory_reset_done()) {
+		/* The long press was for Factory Reset */
+		LOG_DBG("After Factory Reset - ignore button release");
+	    } else   {
+		/* Button released before Factory Reset */
+	    }
 	}
+    }
 
-	check_factory_reset_button(button_state, has_changed);
+    check_factory_reset_button(button_state, has_changed);
 }
 
 /**@brief Function for initializing LEDs and Buttons. */
 static void configure_gpio(void)
 {
-	int err;
+    int err;
 
-	err = dk_buttons_init(button_changed);
-	if (err) {
-		LOG_ERR("Cannot init buttons (err: %d)", err);
-	}
+    err = dk_buttons_init(button_changed);
+    if (err) {
+	LOG_ERR("Cannot init buttons (err: %d)", err);
+    }
 
-	err = dk_leds_init();
-	if (err) {
-		LOG_ERR("Cannot init LEDs (err: %d)", err);
-	}
+    err = dk_leds_init();
+    if (err) {
+	LOG_ERR("Cannot init LEDs (err: %d)", err);
+    }
 }
 
 /**@brief Function for initializing all clusters attributes.
- */
+*/
 static void bulb_clusters_attr_init(void)
 {
-	/* Basic cluster attributes data */
-	dev_ctx.basic_attr.zcl_version = ZB_ZCL_VERSION;
-	dev_ctx.basic_attr.manufacturer = BULB_INIT_BASIC_MANUF_NAME;
-	dev_ctx.basic_attr.model = BULB_INIT_BASIC_MODEL_ID;
-	dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::Battery;
+    /* Basic cluster attributes data */
+    dev_ctx.basic_attr.zcl_version = ZB_ZCL_VERSION;
+    dev_ctx.basic_attr.manufacturer = BULB_INIT_BASIC_MANUF_NAME;
+    dev_ctx.basic_attr.model = BULB_INIT_BASIC_MODEL_ID;
+    dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::Battery;
 }
 
 static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 {
-	zb_uint8_t cluster_id;
-	zb_uint8_t attr_id;
-	LOG_INF("%s id %hd", __func__, device_cb_param->device_cb_id);
+    zb_uint8_t cluster_id;
+    zb_uint8_t attr_id;
+    LOG_INF("%s id %hd", __func__, device_cb_param->device_cb_id);
 
-	/* Set default response value. */
-	device_cb_param->status = RET_OK;
+    /* Set default response value. */
+    device_cb_param->status = RET_OK;
 
-	switch (device_cb_param->device_cb_id) {
+    switch (device_cb_param->device_cb_id) {
 	case ZB_ZCL_LEVEL_CONTROL_SET_VALUE_CB_ID:
-		//LOG_INF("Level control setting to %d",
-		//	device_cb_param->cb_param.level_control_set_value_param
-		//	.new_value);
-		//level_control_set_value(
-		//	device_cb_param->cb_param.level_control_set_value_param
-		//	.new_value);
-		break;
+	    //LOG_INF("Level control setting to %d",
+	    //	device_cb_param->cb_param.level_control_set_value_param
+	    //	.new_value);
+	    //level_control_set_value(
+	    //	device_cb_param->cb_param.level_control_set_value_param
+	    //	.new_value);
+	    break;
 	default:
-		break;
-	}
+	    break;
+    }
 
-	LOG_INF("%s status: %hd", __func__, device_cb_param->status);
+    LOG_INF("%s status: %hd", __func__, device_cb_param->status);
 }
 
 void measure_co2_and_schedule()
 {
-	auto cmd = CO2Commands::Fetch;
-	int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
-	if (res != RET_OK)
-	{
-		//process error
-	}
+    auto cmd = CO2Commands::Fetch;
+    int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+    if (res != RET_OK)
+    {
+	//process error
+    }
 }
 
 zb::ZbAlarmExt16 g_Co2Alarm;
 void update_co2_readings_in_zigbee(uint8_t id)
 {
-	sensor_value v;
-	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
-	dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = float(v.val1) / 1'000'000.f;
-	//schedule next
-	g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
+    sensor_value v;
+    sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
+    dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = float(v.val1) / 1'000'000.f;
+    //schedule next
+    g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
 }
 
 /**@brief Zigbee stack event handler.
@@ -277,87 +278,87 @@ void update_co2_readings_in_zigbee(uint8_t id)
  */
 void zboss_signal_handler(zb_bufid_t bufid)
 {
-	/* Update network status LED. */
-	zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
-	auto ret = zb::tpl_signal_handler<{
-			.on_dev_reboot = measure_co2_and_schedule,
-			.on_steering = measure_co2_and_schedule,
-			.on_can_sleep = zb_sleep_now
-			}>(bufid);
-	ZB_ERROR_CHECK(ret);
+    /* Update network status LED. */
+    zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
+    auto ret = zb::tpl_signal_handler<{
+	.on_dev_reboot = measure_co2_and_schedule,
+	    .on_steering = measure_co2_and_schedule,
+	    .on_can_sleep = zb_sleep_now
+    }>(bufid);
+    ZB_ERROR_CHECK(ret);
 }
 
 K_MUTEX_DEFINE(rtt_term_mutex);
 extern "C" void zephyr_rtt_mutex_lock()
 {
-	k_mutex_lock(&rtt_term_mutex, K_FOREVER);
+    k_mutex_lock(&rtt_term_mutex, K_FOREVER);
 }
 
 extern "C" void zephyr_rtt_mutex_unlock()
 {
-	k_mutex_unlock(&rtt_term_mutex);
+    k_mutex_unlock(&rtt_term_mutex);
 }
 
 int main(void)
 {
-	int blink_status = 0;
-	int err;
+    int blink_status = 0;
+    int err;
 
-	FMT_PRINTLN("Test print");
-	LOG_INF("Starting ZBOSS Light Bulb example");
+    FMT_PRINTLN("Test print");
+    LOG_INF("Starting ZBOSS Light Bulb example");
 
-	co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
-	//if (!device_is_ready(co2sensor)) {
-	//	printk("Sensor not ready");
-	//	return 0;
-	//}
+    co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
+    //if (!device_is_ready(co2sensor)) {
+    //	printk("Sensor not ready");
+    //	return 0;
+    //}
 
-	/* Initialize */
-	//configure_gpio();
-	err = settings_subsys_init();
-	if (err) {
-		LOG_ERR("settings initialization failed");
-	}
-	register_factory_reset_button(FACTORY_RESET_BUTTON);
+    /* Initialize */
+    //configure_gpio();
+    err = settings_subsys_init();
+    if (err) {
+	LOG_ERR("settings initialization failed");
+    }
+    register_factory_reset_button(FACTORY_RESET_BUTTON);
 
-	zigbee_erase_persistent_storage(false);
-	zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
-	zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(30000));
-	zb_set_rx_on_when_idle(false);
-	zigbee_configure_sleepy_behavior(true);
+    zigbee_erase_persistent_storage(false);
+    zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
+    zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(30000));
+    zb_set_rx_on_when_idle(false);
+    zigbee_configure_sleepy_behavior(true);
 
-	/* Register callback for handling ZCL commands. */
-	auto dev_cb = zb::tpl_device_cb<
-	    {test_device_cb} //default generic
-	>;
-	ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
+    /* Register callback for handling ZCL commands. */
+    auto dev_cb = zb::tpl_device_cb<
+    {test_device_cb} //default generic
+    >;
+    ZB_ZCL_REGISTER_DEVICE_CB(dev_cb);
 
-	FMT_PRINTLN("Dev cb: {}", dev_cb);
+    FMT_PRINTLN("Dev cb: {}", dev_cb);
 
-	/* Register dimmer switch device context (endpoints). */
-	ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
+    /* Register dimmer switch device context (endpoints). */
+    ZB_AF_REGISTER_DEVICE_CTX(dimmable_light_ctx);
 
-	bulb_clusters_attr_init();
+    bulb_clusters_attr_init();
 
-	/* Settings should be loaded after zcl_scenes_init */
-	err = settings_load();
-	if (err) {
-		LOG_ERR("settings loading failed");
-	}
+    /* Settings should be loaded after zcl_scenes_init */
+    err = settings_load();
+    if (err) {
+	LOG_ERR("settings loading failed");
+    }
 
-	power_down_unused_ram();
-	/* Start Zigbee default thread */
-	zigbee_enable();
+    power_down_unused_ram();
+    /* Start Zigbee default thread */
+    zigbee_enable();
 
-	LOG_INF("ZBOSS Light Bulb example started");
+    LOG_INF("ZBOSS Light Bulb example started");
 
-	while (1) {
-		k_sleep(K_FOREVER);
-	}
-	//while (1) {
-	//	//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
-	//	k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
-	//	k_cpu_idle();
-	//}
-	return 0;
+    while (1) {
+	k_sleep(K_FOREVER);
+    }
+    //while (1) {
+    //	//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
+    //	k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+    //	k_cpu_idle();
+    //}
+    return 0;
 }
