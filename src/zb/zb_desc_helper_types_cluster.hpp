@@ -1,10 +1,45 @@
 #ifndef ZB_DESC_HELPER_TYPES_CLUSTER_HPP_
 #define ZB_DESC_HELPER_TYPES_CLUSTER_HPP_
 
+#include "lib_object_pool.hpp"
 #include "zb_desc_helper_types_attr.hpp"
 
 namespace zb
 {
+    enum class FrameDirection: uint8_t
+    {
+        ToServer = ZB_ZCL_FRAME_DIRECTION_TO_SRV,
+        ToClient = ZB_ZCL_FRAME_DIRECTION_TO_CLI
+    };
+
+    enum class AddrMode: uint8_t
+    {
+        NoAddr_NoEP = ZB_APS_ADDR_MODE_DST_ADDR_ENDP_NOT_PRESENT,
+        Group_NoEP = ZB_APS_ADDR_MODE_16_GROUP_ENDP_NOT_PRESENT,
+        Dst16EP = ZB_APS_ADDR_MODE_16_ENDP_PRESENT,
+        Dst64EP = ZB_APS_ADDR_MODE_64_ENDP_PRESENT,
+        EPAsBindTableId = ZB_APS_ADDR_MODE_BIND_TBL_ID
+    };
+
+    union frame_ctl_t
+    {
+        struct{
+            uint8_t cluster_specific     : 1;
+            uint8_t manufacture_specific : 1;
+            FrameDirection direction     : 1;
+            uint8_t disable_default_response : 1;
+        } f;
+        uint8_t u8;
+    };
+
+    struct request_args_t
+    {
+        uint8_t ep;
+        uint16_t profile_id;
+        AddrMode addr_mode;
+    };
+
+
     template<class T, class MemType>
     using mem_attr_t = MemType T::*;
 
@@ -72,6 +107,50 @@ namespace zb
         zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
 
         constexpr bool operator==(cluster_info_t const&) const = default;
+    };
+
+    struct request_runtime_args_t
+    {
+        zb_addr_u dst_addr;
+        uint8_t dst_ep = 0xff;
+        zb_callback_t cb = nullptr;
+
+        using PoolType = ObjectPool<request_runtime_args_t, 4>;
+        static PoolType g_Pool;
+    };
+    using RequestPtr = request_runtime_args_t::PoolType::Ptr<request_runtime_args_t::g_Pool>;
+    inline constinit request_runtime_args_t::PoolType request_runtime_args_t::g_Pool{};
+
+    template<zb_uint8_t cmd_id>
+    struct cluster_cmd_desc_t
+    {
+        template<cluster_info_t i, request_args_t r>
+        void request(/*runtime arguments*/)
+        {
+            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
+            pArgs->cb = nullptr;
+            pArgs->dst_ep = 0;
+            //pArgs->dst_addr = 0;
+            zigbee_get_out_buf_delayed_ext(on_out_buf_ready<i, r>, (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+        }
+
+        template<cluster_info_t i, request_args_t r>
+        static void on_out_buf_ready(zb_bufid_t bufid, uint16_t poolIdx)
+        {
+            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.IdxToPtr(poolIdx);
+            RequestPtr raii(pArgs);
+
+            frame_ctl_t f{.f{
+                .cluster_specific = true, 
+                .manufacture_specific = i.manuf_code != ZB_ZCL_MANUF_CODE_INVALID
+                , .direction = FrameDirection::ToServer
+                , .disable_default_response = false
+            }};
+            ZB_ZCL_GET_SEQ_NUM();
+            uint8_t* ptr = (uint8_t*)zb_zcl_start_command_header(bufid, f.u8, i.manuf_code, cmd_id, nullptr);
+            zb_ret_t ret = zb_zcl_finish_and_send_packet(bufid, ptr, &pArgs->dst_addr, (uint8_t)r.addr_mode, pArgs->dst_ep, r.ep, r.profile_id, i.id, pArgs->cb);
+            RET_OK == ret;
+        }
     };
 
     template<cluster_info_t ci, auto... ClusterMemDescriptions>
