@@ -38,7 +38,7 @@ namespace zb
     template<EPBaseInfo i, class... Bases>
     constexpr auto make_ep_args(Bases&...b) { return ep_args_t<i, Bases...>{b...}; }
 
-    template<EPBaseInfo i, class... ClusterTypes>
+    template<EPBaseInfo i, ZigbeeClusterStruct... ClusterTypes>
     struct EPDescSelfContained
     {
         using ClusterListType = zb::TClusterList<ToAttributeListType<ClusterTypes>...>;
