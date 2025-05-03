@@ -112,7 +112,10 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 typedef struct {
     zb::zb_zcl_basic_names_t basic_attr;
     zb::zb_zcl_co2_basic_t co2_attr;
+    [[no_unique_address]]zb::zb_zcl_on_off_attrs_client_t onoff_client;
 } bulb_device_ctx_t;
+
+constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
 
 /* Zigbee device application context storage. */
 static bulb_device_ctx_t dev_ctx;
@@ -121,6 +124,7 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 	zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
 	    dev_ctx.basic_attr
 	    , dev_ctx.co2_attr
+	    , dev_ctx.onoff_client
 	    )
 	);
 
@@ -266,9 +270,16 @@ void update_co2_readings_in_zigbee(uint8_t id)
 {
     sensor_value v;
     sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
-    dim_ep.attr<&zb::zb_zcl_co2_basic_t::measured_value>() = float(v.val1) / 1'000'000.f;
+    dim_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
     //schedule next
     g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
+
+    constexpr auto kCmdOn = &zb::zb_zcl_on_off_attrs_client_t::on;
+    constexpr auto kCmdOff = &zb::zb_zcl_on_off_attrs_client_t::off;
+    dim_ep.send_cmd<kCmdOn>();
+    dim_ep.send_cmd<kCmdOff>();
+    dim_ep.send_cmd_to<kCmdOn>(16, 0);
+    dim_ep.send_cmd_to<kCmdOff>(16, 0);
 }
 
 /**@brief Zigbee stack event handler.
