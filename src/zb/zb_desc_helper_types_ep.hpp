@@ -125,6 +125,7 @@ namespace zb
         template<auto memPtr>
         auto attr_checked() { return attr_raw<memPtr, true>(); }
 
+        //TODO: callback support!
         template<auto memPtr, class... Args>
         auto send_cmd(Args&&...args)
         {
