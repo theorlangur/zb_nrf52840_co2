@@ -10,21 +10,6 @@ namespace zb
     {
         zb_uint16_t app_cluster_list_ext[(ServerCount + ClientCount) - 2];
     } ZB_PACKED_STRUCT;
-
-    template<class MemPtr>
-    struct mem_ptr_traits
-    {
-        static constexpr bool is_mem_ptr = false;
-    };
-
-    template<class T, class MemT>
-    struct mem_ptr_traits<MemT T::*>
-    {
-        static constexpr bool is_mem_ptr = true;
-        using ClassType = T;
-        using MemberType = MemT;
-    };
-
     
     template<cluster_info_t ci, auto mem_desc, bool withCheck> requires requires { typename decltype(mem_desc)::MemT; }
     struct AttributeAccess

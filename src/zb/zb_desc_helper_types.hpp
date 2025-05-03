@@ -27,5 +27,18 @@ namespace zb
 #define DEFINE_NULL_CLUSTER_INIT_FOR(cid) template<> constexpr zb_zcl_cluster_init_t get_cluster_init<cid>(Role r) { return NULL; }
 
 
+    template<class MemPtr>
+    struct mem_ptr_traits
+    {
+        static constexpr bool is_mem_ptr = false;
+    };
+
+    template<class T, class MemT>
+    struct mem_ptr_traits<MemT T::*>
+    {
+        static constexpr bool is_mem_ptr = true;
+        using ClassType = T;
+        using MemberType = MemT;
+    };
 }
 #endif
