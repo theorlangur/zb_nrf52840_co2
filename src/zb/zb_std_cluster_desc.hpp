@@ -39,8 +39,9 @@ struct zb_zcl_basic_min_t
 
 struct zb_zcl_on_off_attrs_client_t
 {
-    [[no_unique_address]]cluster_cmd_desc_t<ZB_ZCL_CMD_ON_OFF_OFF_ID> off;
-    [[no_unique_address]]cluster_cmd_desc_t<ZB_ZCL_CMD_ON_OFF_ON_ID> on;
+    [[no_unique_address]]cluster_std_cmd_desc_t<ZB_ZCL_CMD_ON_OFF_OFF_ID> off;
+    [[no_unique_address]]cluster_std_cmd_desc_t<ZB_ZCL_CMD_ON_OFF_ON_ID> on;
+    [[no_unique_address]]cluster_std_cmd_desc_t<ZB_ZCL_CMD_ON_OFF_ON_WITH_TIMED_OFF_ID, uint8_t, uint16_t, uint16_t> on_with_timed_off;
 };
 
 template<> constexpr auto get_cluster_description<zb_zcl_basic_min_t>()
@@ -124,7 +125,8 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_client_t>(
 		cluster_attributes_desc_t<>{},
 		cluster_commands_desc_t<
 		    &zb_zcl_on_off_attrs_client_t::on, 
-		    &zb_zcl_on_off_attrs_client_t::off
+		    &zb_zcl_on_off_attrs_client_t::off,
+		    &zb_zcl_on_off_attrs_client_t::on_with_timed_off
 		>{}
 	>{};
 }
