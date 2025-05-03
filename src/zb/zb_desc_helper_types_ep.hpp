@@ -90,8 +90,15 @@ namespace zb
         }
 
     private:
-        template<auto memPtr, bool checked>
-        auto attr_raw()
+        template<class _MemType, class _StructType, class _ClusterType>
+        struct ClusterTypeInfo
+        {
+            using MemType = _MemType;
+            using StructType = _StructType;
+            using ClusterType = _ClusterType;
+        };
+        template<auto memPtr>
+        static consteval auto validate_mem_ptr()
         {
             using MemPtrType = decltype(memPtr);
             static_assert(mem_ptr_traits<MemPtrType>::is_mem_ptr, "Only member pointer is allowed");
@@ -100,7 +107,14 @@ namespace zb
             //using MemType = mem_ptr_traits<MemPtrType>::MemberType;
             using ClusterDescType = decltype(get_cluster_description<ClassType>());
             static_assert(Clusters::has_info(ClusterDescType::info()), "Requested cluster is not part of the EP");
+            return ClusterTypeInfo<MemPtrType, ClassType, ClusterDescType>{};
+        }
 
+        template<auto memPtr, bool checked>
+        auto attr_raw()
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
             return AttributeAccess<ClusterDescType::info(), ClusterDescType::template get_member_description<memPtr>(), checked>{ep};
         }
 
@@ -110,6 +124,46 @@ namespace zb
 
         template<auto memPtr>
         auto attr_checked() { return attr_raw<memPtr, true>(); }
+
+        template<auto memPtr>
+        auto send_cmd()
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>();
+        }
+
+        template<auto memPtr>
+        auto send_cmd_to(uint16_t short_addr, uint8_t ep)
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(short_addr, ep);
+        }
+
+        template<auto memPtr>
+        auto send_cmd_to(zb_ieee_addr_t long_addr, uint8_t ep)
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(long_addr, ep);
+        }
+
+        template<auto memPtr>
+        auto send_cmd_to_group(uint16_t group)
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(group);
+        }
+
+        template<auto memPtr>
+        auto send_cmd_to_binded(uint8_t bind_table_id)
+        {
+            constexpr auto types = validate_mem_ptr<memPtr>();
+            using ClusterDescType = decltype(types)::ClusterType;
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(bind_table_id);
+        }
 
         template<auto memPtr>
         constexpr EPClusterAttributeDesc_t handler_filter_for_attribute()
