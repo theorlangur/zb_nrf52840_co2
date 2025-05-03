@@ -125,44 +125,44 @@ namespace zb
         template<auto memPtr>
         auto attr_checked() { return attr_raw<memPtr, true>(); }
 
-        template<auto memPtr>
-        auto send_cmd()
+        template<auto memPtr, class... Args>
+        auto send_cmd(Args&&...args)
         {
             constexpr auto types = validate_mem_ptr<memPtr>();
             using ClusterDescType = decltype(types)::ClusterType;
-            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>();
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(std::forward<Args>(args)...);
         }
 
-        template<auto memPtr>
-        auto send_cmd_to(uint16_t short_addr, uint8_t ep)
+        template<auto memPtr, class... Args>
+        auto send_cmd_to(uint16_t short_addr, uint8_t ep, Args&&...args)
         {
             constexpr auto types = validate_mem_ptr<memPtr>();
             using ClusterDescType = decltype(types)::ClusterType;
-            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(short_addr, ep);
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(short_addr, ep, std::forward<Args>(args)...);
         }
 
-        template<auto memPtr>
-        auto send_cmd_to(zb_ieee_addr_t long_addr, uint8_t ep)
+        template<auto memPtr, class... Args>
+        auto send_cmd_to(zb_ieee_addr_t long_addr, uint8_t ep, Args&&...args)
         {
             constexpr auto types = validate_mem_ptr<memPtr>();
             using ClusterDescType = decltype(types)::ClusterType;
-            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(long_addr, ep);
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(long_addr, ep, std::forward<Args>(args)...);
         }
 
-        template<auto memPtr>
-        auto send_cmd_to_group(uint16_t group)
+        template<auto memPtr, class... Args>
+        auto send_cmd_to_group(uint16_t group, Args&&...args)
         {
             constexpr auto types = validate_mem_ptr<memPtr>();
             using ClusterDescType = decltype(types)::ClusterType;
-            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(group);
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(group, std::forward<Args>(args)...);
         }
 
-        template<auto memPtr>
-        auto send_cmd_to_binded(uint8_t bind_table_id)
+        template<auto memPtr, class... Args>
+        auto send_cmd_to_binded(uint8_t bind_table_id, Args&&...args)
         {
             constexpr auto types = validate_mem_ptr<memPtr>();
             using ClusterDescType = decltype(types)::ClusterType;
-            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(bind_table_id);
+            ClusterDescType::template get_cmd_description<memPtr>().template request<ClusterDescType::info(), {.ep = i.ep}>(bind_table_id, std::forward<Args>(args)...);
         }
 
         template<auto memPtr>

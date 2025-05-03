@@ -94,8 +94,6 @@ namespace zb
     };
 
     //helper for commands
-    template<zb_uint8_t cmd_id, zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID>
-    struct cluster_cmd_desc_t;
 
     template<auto MemPtr>
     constexpr uint8_t CmdIdFromCmdMemPtr = mem_ptr_traits<decltype(MemPtr)>::MemberType::kCmdId;
@@ -130,16 +128,64 @@ namespace zb
         constexpr bool operator==(cluster_info_t const&) const = default;
     };
 
-    struct request_runtime_args_t
+    struct request_runtime_args_base_t
     {
         zb_addr_u dst_addr;
         uint8_t dst_ep;
-
-        using PoolType = ObjectPool<request_runtime_args_t, 4>;
-        static PoolType g_Pool;
     };
-    using RequestPtr = request_runtime_args_t::PoolType::Ptr<request_runtime_args_t::g_Pool>;
-    inline constinit request_runtime_args_t::PoolType request_runtime_args_t::g_Pool{};
+
+    template<size_t I>
+    struct request_tag_t{};
+
+    template<size_t I, class T>
+    struct request_runtime_arg_t
+    {
+        T val;
+
+        constexpr T& get(request_tag_t<I>) { return val; }
+        void copy_to(request_tag_t<I>, uint8_t *&pPtr) const
+        { 
+            if constexpr (sizeof(T) == 1)
+                *pPtr++ = *(const uint8_t*)&val;
+            else if constexpr (sizeof(T) == 2)
+            {
+                *pPtr++ = ((const uint8_t*)&val)[0];
+                *pPtr++ = ((const uint8_t*)&val)[1];
+            }else
+            {
+                std::memcpy(pPtr, &val, sizeof(T));
+                pPtr += sizeof(T);
+            }
+        }
+    };
+
+    template<class Seq, class... Args>
+    struct request_runtime_args_var_t;
+
+    template<size_t... I, class... Args>
+    struct request_runtime_args_var_t<std::index_sequence<I...>, Args...>: request_runtime_args_base_t, request_runtime_arg_t<I, Args>...
+    {
+        using request_runtime_arg_t<I, Args>::get...;
+        using request_runtime_arg_t<I, Args>::copy_to...;
+
+        request_runtime_args_var_t(uint16_t short_a, uint8_t e, Args&&... args):
+            request_runtime_args_base_t{.dst_addr = {.addr_short = short_a} , .dst_ep = e},
+            request_runtime_arg_t<I, Args>{args}...
+        {}
+
+        request_runtime_args_var_t(zb_ieee_addr_t long_a, uint8_t e, Args&&... args):
+            request_runtime_args_base_t{.dst_ep = e},
+            request_runtime_arg_t<I, Args>{args}...
+        {
+            std::memcpy(dst_addr.addr_long, long_a, sizeof(zb_ieee_addr_t));
+        }
+
+        uint8_t* copy_to_buffer(uint8_t *pPtr) const
+        {
+            (copy_to(request_tag_t<I>{}, pPtr),...);
+            return pPtr;
+        }
+    };
 
     struct request_args_t
     {
@@ -153,70 +199,75 @@ namespace zb
         AddrMode addr_mode;
     };
 
+    struct cmd_cfg_t
+    {
+        uint8_t cmd_id;
+        uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
+        uint16_t pool_size = 1;
+    };
     //as NTTP to cluster description template type
-    template<zb_uint8_t cmd_id, zb_uint16_t manuf_code>
+    template<cmd_cfg_t cfg, class... Args>
     struct cluster_cmd_desc_t
     {
-        static constexpr uint8_t kCmdId = cmd_id;
+        using runtime_args_t = request_runtime_args_var_t<decltype(std::make_index_sequence<sizeof...(Args)>{}), Args...>;
+        using PoolType = ObjectPool<runtime_args_t, 1>;
+        static PoolType g_Pool;
+        using RequestPtr = PoolType::template Ptr<g_Pool>;
+
+        static constexpr uint8_t kCmdId = cfg.cmd_id;
             
         template<cluster_info_t i, request_args_t r>
-        static void request()
+        static void request(Args&&... args)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
+            auto *pArgs = g_Pool.Acquire(uint16_t(0), uint8_t(0), std::forward<Args>(args)...);
             zigbee_get_out_buf_delayed_ext(
                     &on_out_buf_ready<i, {{.ep = r.ep, .cb = r.cb, .profile_id = r.profile_id}, AddrMode::NoAddr_NoEP}>
-                    , (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+                    , (uint16_t)g_Pool.PtrToIdx(pArgs), 0);
         }
 
         template<cluster_info_t i, request_args_t r>
-        static void request(uint16_t short_addr, uint8_t ep)
+        static void request(uint16_t short_addr, uint8_t ep, Args&&... args)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
-            pArgs->dst_ep = ep;
-            pArgs->dst_addr.addr_short = short_addr;
+            auto *pArgs = g_Pool.Acquire(short_addr, ep, std::forward<Args>(args)...);
             zigbee_get_out_buf_delayed_ext(
                     &on_out_buf_ready<i, {{.ep = r.ep, .cb = r.cb, .profile_id = r.profile_id}, AddrMode::Dst16EP}>
-                    , (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+                    , (uint16_t)g_Pool.PtrToIdx(pArgs), 0);
         }
 
         template<cluster_info_t i, request_args_t r>
-        static void request(zb_ieee_addr_t ieee_addr, uint8_t ep)
+        static void request(zb_ieee_addr_t ieee_addr, uint8_t ep, Args&&... args)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
-            pArgs->dst_ep = ep;
-            std::memcpy(pArgs->dst_addr.addr_long, ieee_addr, sizeof(zb_ieee_addr_t));
+            auto *pArgs = g_Pool.Acquire(ieee_addr, ep, std::forward<Args>(args)...);
             zigbee_get_out_buf_delayed_ext(
                     &on_out_buf_ready<i, {{.ep = r.ep, .cb = r.cb, .profile_id = r.profile_id}, AddrMode::Dst64EP}>
-                    , (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+                    , (uint16_t)g_Pool.PtrToIdx(pArgs), 0);
         }
 
         template<cluster_info_t i, request_args_t r>
-        static void request(uint16_t group_addr)
+        static void request(uint16_t group_addr, Args&&... args)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
-            pArgs->dst_addr.addr_short = group_addr;
+            auto *pArgs = g_Pool.Acquire(group_addr, uint8_t(0), std::forward<Args>(args)...);
             zigbee_get_out_buf_delayed_ext(
                     &on_out_buf_ready<i, {{.ep = r.ep, .cb = r.cb, .profile_id = r.profile_id}, AddrMode::Group_NoEP}>
-                    , (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+                    , (uint16_t)g_Pool.PtrToIdx(pArgs), 0);
         }
 
         template<cluster_info_t i, request_args_t r>
-        static void request(uint8_t bind_table_id)
+        static void request(uint8_t bind_table_id, Args&&... args)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.Acquire();
-            pArgs->dst_ep = bind_table_id;
+            auto *pArgs = g_Pool.Acquire(uint16_t(0), bind_table_id, std::forward<Args>(args)...);
             zigbee_get_out_buf_delayed_ext(
                     &on_out_buf_ready<i, {{.ep = r.ep, .cb = r.cb, .profile_id = r.profile_id}, AddrMode::EPAsBindTableId}>
-                    , (uint16_t)request_runtime_args_t::g_Pool.PtrToIdx(pArgs), 0);
+                    , (uint16_t)g_Pool.PtrToIdx(pArgs), 0);
         }
 
         template<cluster_info_t i, request_args_intern_t r>
         static void on_out_buf_ready(zb_bufid_t bufid, uint16_t poolIdx)
         {
-            request_runtime_args_t *pArgs = request_runtime_args_t::g_Pool.IdxToPtr(poolIdx);
+            auto *pArgs = g_Pool.IdxToPtr(poolIdx);
             RequestPtr raii(pArgs);
 
-            constexpr uint16_t manu_code = i.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? i.manuf_code : manuf_code;
+            constexpr uint16_t manu_code = i.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? i.manuf_code : cfg.manuf_code;
 
             frame_ctl_t f{.f{
                 .cluster_specific = true, 
@@ -225,12 +276,18 @@ namespace zb
                 , .disable_default_response = false
             }};
             ZB_ZCL_GET_SEQ_NUM();
-            uint8_t* ptr = (uint8_t*)zb_zcl_start_command_header(bufid, f.u8, manu_code, cmd_id, nullptr);
+            uint8_t* ptr = (uint8_t*)zb_zcl_start_command_header(bufid, f.u8, manu_code, cfg.cmd_id, nullptr);
+            ptr = pArgs->copy_to_buffer(ptr);
             zb_ret_t ret = zb_zcl_finish_and_send_packet(bufid, ptr, &pArgs->dst_addr, (uint8_t)r.addr_mode, pArgs->dst_ep, r.ep, r.profile_id, i.id, r.cb);
             if (RET_OK != ret && r.cb)
                 r.cb(uint8_t(ret));
         }
     };
+    template<cmd_cfg_t cfg, class... Args>
+    constinit inline cluster_cmd_desc_t<cfg, Args...>::PoolType cluster_cmd_desc_t<cfg, Args...>::g_Pool{};
+
+    template<zb_uint8_t cmd_id, class... Args>
+    struct cluster_std_cmd_desc_t: cluster_cmd_desc_t<{.cmd_id = cmd_id}, Args...> {};
 
     template<auto... attributeMemberDesc>
     struct cluster_attributes_desc_t
