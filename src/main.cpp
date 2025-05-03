@@ -145,7 +145,7 @@ constexpr size_t MSGQ_CO2_LENGTH = 2;
 
 K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
 
-constexpr size_t CO2_THREAD_STACK_SIZE = 256;
+constexpr size_t CO2_THREAD_STACK_SIZE = 512;
 constexpr size_t CO2_THREAD_PRIORITY=7;
 
 void co2_thread_entry(void *, void *, void *);
@@ -165,12 +165,15 @@ void co2_thread_entry(void *, void *, void *)
 	{
 	    using enum CO2Commands;
 	    case Fetch:
-	    if (device_is_ready(co2sensor)) {
+	    if (co2sensor && device_is_ready(co2sensor)) {
 		if (sensor_sample_fetch(co2sensor) == 0)
 		{
 		    //post to zigbee thread
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 		}
+	    }else
+	    {
+		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 1);
 	    }
 	    break;
 	}
@@ -260,15 +263,25 @@ void measure_co2_and_schedule()
     if (res != RET_OK)
     {
 	//process error
+	dim_ep.attr<kAttrCO2Value>() = float(160) / 1'000'000.f;
+    }else
+    {
+	dim_ep.attr<kAttrCO2Value>() = float(140) / 1'000'000.f;
     }
 }
 
 zb::ZbAlarmExt16 g_Co2Alarm;
 void update_co2_readings_in_zigbee(uint8_t id)
 {
-    sensor_value v;
-    sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
-    dim_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
+    if (co2sensor)
+    {
+	sensor_value v;
+	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
+	dim_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
+    }else
+    {
+	dim_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
+    }
     //schedule next
     g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
 }
@@ -310,10 +323,12 @@ int main(void)
     LOG_INF("Starting ZBOSS Light Bulb example");
 
     co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
-    //if (!device_is_ready(co2sensor)) {
-    //	printk("Sensor not ready");
-    //	return 0;
-    //}
+
+    if (!device_is_ready(co2sensor)) {
+    	printk("Sensor not ready");
+    	return 0;
+    }
+    device_init(co2sensor);
 
     /* Initialize */
     //configure_gpio();
@@ -349,6 +364,7 @@ int main(void)
     }
 
     power_down_unused_ram();
+    k_thread_start(co2_thread);
     /* Start Zigbee default thread */
     zigbee_enable();
 
