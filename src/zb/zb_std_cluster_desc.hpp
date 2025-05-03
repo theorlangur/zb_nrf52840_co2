@@ -124,9 +124,9 @@ template<> constexpr auto get_cluster_description<zb_zcl_on_off_attrs_client_t>(
 		{.id = ZB_ZCL_CLUSTER_ID_ON_OFF, .role = Role::Client},
 		cluster_attributes_desc_t<>{},
 		cluster_commands_desc_t<
-		    &zb_zcl_on_off_attrs_client_t::on, 
-		    &zb_zcl_on_off_attrs_client_t::off,
-		    &zb_zcl_on_off_attrs_client_t::on_with_timed_off
+		     &zb_zcl_on_off_attrs_client_t::on
+		    ,&zb_zcl_on_off_attrs_client_t::off
+		    ,&zb_zcl_on_off_attrs_client_t::on_with_timed_off
 		>{}
 	>{};
 }

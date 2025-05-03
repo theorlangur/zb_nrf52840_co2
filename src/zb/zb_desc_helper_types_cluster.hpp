@@ -132,7 +132,7 @@ namespace zb
     {
         zb_addr_u dst_addr;
         uint8_t dst_ep;
-    };
+    }ZB_PACKED_STRUCT;
 
     template<size_t I>
     struct request_tag_t{};
@@ -157,7 +157,7 @@ namespace zb
                 pPtr += sizeof(T);
             }
         }
-    };
+    }ZB_PACKED_STRUCT;
 
     template<class Seq, class... Args>
     struct request_runtime_args_var_t;
@@ -185,7 +185,7 @@ namespace zb
             (copy_to(request_tag_t<I>{}, pPtr),...);
             return pPtr;
         }
-    };
+    }ZB_PACKED_STRUCT;
 
     struct request_args_t
     {
