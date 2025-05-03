@@ -210,7 +210,7 @@ namespace zb
     struct cluster_cmd_desc_t
     {
         using runtime_args_t = request_runtime_args_var_t<decltype(std::make_index_sequence<sizeof...(Args)>{}), Args...>;
-        using PoolType = ObjectPool<runtime_args_t, 1>;
+        using PoolType = ObjectPool<runtime_args_t, cfg.pool_size>;
         static PoolType g_Pool;
         using RequestPtr = PoolType::template Ptr<g_Pool>;
 
