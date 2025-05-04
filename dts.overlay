@@ -24,6 +24,8 @@
         reg = <0x62>;
         label = "SCD41";
         /* mode 2 = single shot */
+        /* mode 1 = low power */
+        /* mode 0 = normal */
         mode = < 2 >;
         status = "okay";
     };
