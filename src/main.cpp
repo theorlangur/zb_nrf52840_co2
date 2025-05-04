@@ -263,10 +263,6 @@ void measure_co2_and_schedule()
     if (res != RET_OK)
     {
 	//process error
-	dim_ep.attr<kAttrCO2Value>() = float(160) / 1'000'000.f;
-    }else
-    {
-	dim_ep.attr<kAttrCO2Value>() = float(140) / 1'000'000.f;
     }
 }
 
