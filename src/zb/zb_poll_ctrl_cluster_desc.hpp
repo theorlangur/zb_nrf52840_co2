@@ -27,6 +27,8 @@ namespace zb
         uint32_t long_poll_interval = 5_sec_to_qs;//5sec
         uint16_t short_poll_interval = 2;//2quater-sec
         uint16_t fast_poll_timeout = 10_sec_to_qs;//10sec
+        zb_zcl_poll_control_srv_cfg_data_t srv_cfg =                                         \
+        { ZB_ZCL_POLL_CTRL_INVALID_ADDR, ZB_ZCL_POLL_INVALID_EP, 0, 0 };        \
     };
 
     struct zb_zcl_poll_ctrl_t: zb_zcl_poll_ctrl_basic_t
@@ -45,7 +47,8 @@ namespace zb
                 cluster_mem_desc_t{.m = &T::check_in_interval,  .id = 0x0000, .a=Access::RW},
                 cluster_mem_desc_t{.m = &T::long_poll_interval, .id = 0x0001, .a=Access::Read},
                 cluster_mem_desc_t{.m = &T::short_poll_interval,.id = 0x0002, .a=Access::Read},
-                cluster_mem_desc_t{.m = &T::fast_poll_timeout,  .id = 0x0003, .a=Access::RW}
+                cluster_mem_desc_t{.m = &T::fast_poll_timeout,  .id = 0x0003, .a=Access::RW},
+                cluster_mem_desc_t{.m = &T::srv_cfg,  .id = 0xeffeU, .a=Access::Internal, .type=Type::Null}
             >{}
         >{};
     }
