@@ -30,6 +30,7 @@
 #include "zb_dimmable_light.h"
 #include "zb/zb_alarm.hpp"
 #include "zb/zb_co2_cluster_desc.hpp"
+#include "zb/zb_poll_ctrl_cluster_desc.hpp"
 
 #include "lib_misc_helpers.hpp"
 
@@ -112,17 +113,26 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 typedef struct {
     zb::zb_zcl_basic_names_t basic_attr;
     zb::zb_zcl_co2_basic_t co2_attr;
+    zb::zb_zcl_poll_ctrl_basic_t poll_ctrl;
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
 
+using namespace zb::literals;
 /* Zigbee device application context storage. */
-static bulb_device_ctx_t dev_ctx;
+static constinit bulb_device_ctx_t dev_ctx{
+    .poll_ctrl = {
+	.check_in_interval = 10_min_to_qs,
+	.long_poll_interval = 0xffffffff,//disabled
+	//.short_poll_interval = 1_sec_to_qs,
+    }
+};
 
 constinit static auto dimmable_light_ctx = zb::make_device( 
 	zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
 	    dev_ctx.basic_attr
 	    , dev_ctx.co2_attr
+	    , dev_ctx.poll_ctrl
 	    )
 	);
 
@@ -258,6 +268,8 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 
 void measure_co2_and_schedule()
 {
+    zb_zcl_poll_control_start(0, DIMMABLE_LIGHT_ENDPOINT);
+
     auto cmd = CO2Commands::Fetch;
     int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
     if (res != RET_OK)
@@ -292,9 +304,10 @@ void zboss_signal_handler(zb_bufid_t bufid)
     /* Update network status LED. */
     zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
     auto ret = zb::tpl_signal_handler<{
-	.on_dev_reboot = measure_co2_and_schedule,
+	    .on_leave = []{ zb_zcl_poll_control_stop(); },
+	    .on_dev_reboot = measure_co2_and_schedule,
 	    .on_steering = measure_co2_and_schedule,
-	    .on_can_sleep = zb_sleep_now
+	    .on_can_sleep = zb_sleep_now,
     }>(bufid);
     ZB_ERROR_CHECK(ret);
 }
