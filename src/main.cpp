@@ -268,14 +268,19 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 
 void measure_co2_and_schedule()
 {
-    zb_zcl_poll_control_start(0, DIMMABLE_LIGHT_ENDPOINT);
-
     auto cmd = CO2Commands::Fetch;
     int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
     if (res != RET_OK)
     {
 	//process error
     }
+}
+
+void on_zigbee_start()
+{
+    zb_zcl_poll_control_start(0, DIMMABLE_LIGHT_ENDPOINT);
+    zb_zcl_poll_controll_register_cb([](uint8_t){measure_co2_and_schedule();});
+    measure_co2_and_schedule();
 }
 
 zb::ZbAlarmExt16 g_Co2Alarm;
@@ -290,8 +295,6 @@ void update_co2_readings_in_zigbee(uint8_t id)
     {
 	dim_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
     }
-    //schedule next
-    g_Co2Alarm.Setup(measure_co2_and_schedule, 2 * 60 * 1000);
 }
 
 /**@brief Zigbee stack event handler.
@@ -305,8 +308,8 @@ void zboss_signal_handler(zb_bufid_t bufid)
     zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
     auto ret = zb::tpl_signal_handler<{
 	    .on_leave = []{ zb_zcl_poll_control_stop(); },
-	    .on_dev_reboot = measure_co2_and_schedule,
-	    .on_steering = measure_co2_and_schedule,
+	    .on_dev_reboot = on_zigbee_start,
+	    .on_steering = on_zigbee_start,
 	    .on_can_sleep = zb_sleep_now,
     }>(bufid);
     ZB_ERROR_CHECK(ret);
