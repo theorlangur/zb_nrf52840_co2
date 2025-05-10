@@ -15,6 +15,7 @@
 #include <soc.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/regulator.h>
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
@@ -139,6 +140,7 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 constinit static auto &dim_ep = dimmable_light_ctx.ep<DIMMABLE_LIGHT_ENDPOINT>();
 
 constinit const struct device *co2sensor = nullptr;
+constinit const struct device *co2_power = nullptr;
 
 enum class CO2Commands
 {
@@ -175,6 +177,7 @@ void co2_thread_entry(void *, void *, void *)
 	{
 	    using enum CO2Commands;
 	    case Fetch:
+	    regulator_enable(co2_power);
 	    if (co2sensor && device_is_ready(co2sensor)) {
 		if (sensor_sample_fetch(co2sensor) == 0)
 		{
@@ -185,6 +188,7 @@ void co2_thread_entry(void *, void *, void *)
 	    {
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 1);
 	    }
+	    regulator_disable(co2_power);
 	    break;
 	}
     }
@@ -341,6 +345,12 @@ int main(void)
     	return 0;
     }
     device_init(co2sensor);
+
+    co2_power = DEVICE_DT_GET(DT_NODELABEL(scd41_power));
+    if (!device_is_ready(co2_power)) {
+    	printk("Power reg not ready");
+    	return 0;
+    }
 
     /* Initialize */
     //configure_gpio();
