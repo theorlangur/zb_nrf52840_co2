@@ -118,6 +118,7 @@ typedef struct {
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
+constexpr uint32_t kPowerCycleThresholdSeconds = 6 * 60;
 
 using namespace zb::literals;
 /* Zigbee device application context storage. */
@@ -170,6 +171,7 @@ K_THREAD_DEFINE(co2_thread, CO2_THREAD_STACK_SIZE,
 void co2_thread_entry(void *, void *, void *)
 {
     CO2Commands cmd;
+    bool needsPowerCycle = false;
     while(1)
     {
 	k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
@@ -177,18 +179,27 @@ void co2_thread_entry(void *, void *, void *)
 	{
 	    using enum CO2Commands;
 	    case Fetch:
-	    regulator_enable(co2_power);
+	    if ((needsPowerCycle = !regulator_is_enabled(co2_power)))
+		regulator_enable(co2_power);
 	    if (co2sensor && device_is_ready(co2sensor)) {
 		if (sensor_sample_fetch(co2sensor) == 0)
 		{
+		    if (needsPowerCycle)
+		    {
+			//after power up 2 fetches are needed
+			sensor_sample_fetch(co2sensor);
+		    }
+
 		    //post to zigbee thread
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 		}
-	    }else
-	    {
-		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 1);
 	    }
-	    regulator_disable(co2_power);
+
+	    if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
+	    {
+		//check in interval is big enough to power down
+		regulator_disable(co2_power);
+	    }
 	    break;
 	}
     }

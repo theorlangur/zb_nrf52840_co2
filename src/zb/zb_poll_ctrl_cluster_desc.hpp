@@ -19,6 +19,8 @@ namespace zb
         constexpr uint32_t operator"" _h_to_qs(unsigned long long v) { return v * 4 * 60 * 60; }
     }
 
+    constexpr uint32_t qs_to_s(uint32_t v) { return v / 4; }
+
     using namespace literals;
     static constexpr uint16_t kZB_ZCL_CLUSTER_ID_POLL_CTRL = 0x0020;
     struct zb_zcl_poll_ctrl_basic_t
