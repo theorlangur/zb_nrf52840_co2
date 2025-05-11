@@ -8,6 +8,12 @@
             "group": { "kind": "build" }
         },
         {
+            "label": "West Build",
+            "type": "shell",
+            "command": "./e.sh ./build-l.sh",
+            "group": { "kind": "build" }
+        },
+        {
             "label": "Flash",
             "type": "shell",
             "command": "./e.sh west flash"
