@@ -124,7 +124,7 @@ using namespace zb::literals;
 /* Zigbee device application context storage. */
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
-	.check_in_interval = 10_min_to_qs,
+	.check_in_interval = 1_min_to_qs,
 	.long_poll_interval = 0xffffffff,//disabled
 	//.short_poll_interval = 1_sec_to_qs,
     }
@@ -158,7 +158,7 @@ constexpr size_t MSGQ_CO2_LENGTH = 2;
 
 K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
 
-constexpr size_t CO2_THREAD_STACK_SIZE = 512;
+constexpr size_t CO2_THREAD_STACK_SIZE = 512 * 4;
 constexpr size_t CO2_THREAD_PRIORITY=7;
 
 void co2_thread_entry(void *, void *, void *);
@@ -179,9 +179,16 @@ void co2_thread_entry(void *, void *, void *)
 	{
 	    using enum CO2Commands;
 	    case Fetch:
+	    //LOG_INF("co2 thread: fetch command");
 	    if ((needsPowerCycle = !regulator_is_enabled(co2_power)))
+	    {
+		//LOG_INF("co2 thread: enabling regulator");
+		//printk("co2 thread: enabling regulator");
 		regulator_enable(co2_power);
-	    if (co2sensor && device_is_ready(co2sensor)) {
+		k_sleep(K_MSEC(1000));
+		device_init(co2sensor);
+	    }
+	    if (device_is_ready(co2sensor)) {
 		if (sensor_sample_fetch(co2sensor) == 0)
 		{
 		    if (needsPowerCycle)
@@ -192,11 +199,21 @@ void co2_thread_entry(void *, void *, void *)
 
 		    //post to zigbee thread
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
+		}else
+		{
+		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 2);
 		}
+	    }else
+	    {
+		LOG_INF("co2 thread: sensor not ready");
+		zigbee_schedule_callback(update_co2_readings_in_zigbee, 1);
+		//printk("co2 thread: sensor not ready");
 	    }
 
 	    if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
 	    {
+		//LOG_INF("co2 thread: disabling power");
+		//printk("co2 thread: disabling power");
 		//check in interval is big enough to power down
 		regulator_disable(co2_power);
 	    }
@@ -283,6 +300,7 @@ static void test_device_cb(zb_zcl_device_callback_param_t *device_cb_param)
 
 void measure_co2_and_schedule()
 {
+    LOG_INF("measure_co2_and_schedule");
     auto cmd = CO2Commands::Fetch;
     int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
     if (res != RET_OK)
@@ -293,6 +311,7 @@ void measure_co2_and_schedule()
 
 void on_zigbee_start()
 {
+    LOG_INF("on_zigbee_start");
     zb_zcl_poll_control_start(0, DIMMABLE_LIGHT_ENDPOINT);
     zb_zcl_poll_controll_register_cb([](uint8_t){measure_co2_and_schedule();});
     measure_co2_and_schedule();
@@ -301,7 +320,11 @@ void on_zigbee_start()
 zb::ZbAlarmExt16 g_Co2Alarm;
 void update_co2_readings_in_zigbee(uint8_t id)
 {
-    if (co2sensor)
+    LOG_INF("update_co2_readings_in_zigbee");
+    if (id != 0)
+    {
+	dim_ep.attr<kAttrCO2Value>() = float(id) / 1'000'000.f;
+    }else if (co2sensor)
     {
 	sensor_value v;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
@@ -351,11 +374,11 @@ int main(void)
 
     co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
 
-    if (!device_is_ready(co2sensor)) {
-    	printk("Sensor not ready");
-    	return 0;
-    }
-    device_init(co2sensor);
+    //if (!device_is_ready(co2sensor)) {
+    //	printk("Sensor not ready");
+    //	return 0;
+    //}
+    //device_init(co2sensor);
 
     co2_power = DEVICE_DT_GET(DT_NODELABEL(scd41_power));
     if (!device_is_ready(co2_power)) {
@@ -374,8 +397,8 @@ int main(void)
     zigbee_erase_persistent_storage(false);
     zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
     zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(1000 * 30));
-    zb_set_rx_on_when_idle(false);
-    zigbee_configure_sleepy_behavior(true);
+    //zb_set_rx_on_when_idle(false);
+    //zigbee_configure_sleepy_behavior(true);
 
     /* Register callback for handling ZCL commands. */
     auto dev_cb = zb::tpl_device_cb<
@@ -396,7 +419,7 @@ int main(void)
 	LOG_ERR("settings loading failed");
     }
 
-    power_down_unused_ram();
+    //power_down_unused_ram();
     k_thread_start(co2_thread);
     /* Start Zigbee default thread */
     zigbee_enable();
@@ -404,7 +427,10 @@ int main(void)
     LOG_INF("ZBOSS Light Bulb example started");
 
     while (1) {
+	//LOG_INF("Dummy tick");
+	//   	dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
 	k_sleep(K_FOREVER);
+	//k_sleep(K_MSEC(4000));
     }
     //while (1) {
     //	//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
