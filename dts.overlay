@@ -6,8 +6,6 @@
         status = "okay";
 
         /* GPIO controlling the MOSFET gate */
-        /* Replace &gpio0 with your actual GPIO controller */
-        /* Replace 15 with your actual GPIO pin number */
         /* GPIO_ACTIVE_HIGH means the sensor is ON when GPIO is high */
         /* Use GPIO_ACTIVE_LOW if your MOSFET logic is inverted */
         enable-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
@@ -17,11 +15,15 @@
         // regulator-max-microvolt = ; // e.g., 3.3V
 
         /* Optional: Delay after enabling GPIO before regulator is considered stable */
-        startup-delay-us = <1000>; // 1us, adjust based on MOSFET and sensor VCC rise time
+        startup-delay-us = <1>; // 1us, adjust based on MOSFET and sensor VCC rise time
 
         /* Optional: Specify that this regulator should be off initially */
         // regulator-boot-on; // Remove or comment out if you want it initially OFF
     };
+
+	chosen {
+		ncs,zigbee-timer = &timer2;
+	};
 };
 &pinctrl {
    i2c0_default_alt: i2c0_default_alt {
@@ -53,6 +55,7 @@
         /* mode 0 = normal */
         mode = < 2 >;
         status = "okay";
+		zephyr,deferred-init;
     };
 };
 &i2c1 {
