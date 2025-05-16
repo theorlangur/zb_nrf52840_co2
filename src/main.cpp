@@ -118,13 +118,13 @@ typedef struct {
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
-constexpr uint32_t kPowerCycleThresholdSeconds = 6 * 60;
+constexpr uint32_t kPowerCycleThresholdSeconds = 2 * 60 - 1;
 
 using namespace zb::literals;
 /* Zigbee device application context storage. */
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
-	.check_in_interval = 8_min_to_qs,
+	.check_in_interval = 2_min_to_qs,
 	.long_poll_interval = 0xffffffff,//disabled
 	//.short_poll_interval = 1_sec_to_qs,
     }
