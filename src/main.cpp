@@ -31,6 +31,8 @@
 #include "zb_dimmable_light.h"
 #include "zb/zb_alarm.hpp"
 #include "zb/zb_co2_cluster_desc.hpp"
+#include "zb/zb_temp_cluster_desc.hpp"
+#include "zb/zb_humid_cluster_desc.hpp"
 #include "zb/zb_poll_ctrl_cluster_desc.hpp"
 
 #include "lib_misc_helpers.hpp"
@@ -113,18 +115,22 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
  */
 typedef struct {
     zb::zb_zcl_basic_names_t basic_attr;
-    zb::zb_zcl_co2_basic_t co2_attr;
     zb::zb_zcl_poll_ctrl_basic_t poll_ctrl;
+    zb::zb_zcl_co2_basic_t co2_attr;
+    zb::zb_zcl_temp_basic_t temp_attr;
+    zb::zb_zcl_rel_humid_basic_t humid_attr;
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
-constexpr uint32_t kPowerCycleThresholdSeconds = 2 * 60 - 1;
+constexpr auto kAttrTempalue = &zb::zb_zcl_temp_basic_t::measured_value;
+constexpr auto kAttrRelHalue = &zb::zb_zcl_rel_humid_basic_t::measured_value;
+constexpr uint32_t kPowerCycleThresholdSeconds = 6 * 60 - 1;
 
 using namespace zb::literals;
 /* Zigbee device application context storage. */
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
-	.check_in_interval = 2_min_to_qs,
+	.check_in_interval = 8_min_to_qs,
 	.long_poll_interval = 0xffffffff,//disabled
 	//.short_poll_interval = 1_sec_to_qs,
     }
@@ -133,8 +139,10 @@ static constinit bulb_device_ctx_t dev_ctx{
 constinit static auto dimmable_light_ctx = zb::make_device( 
 	zb::make_ep_args<{.ep=DIMMABLE_LIGHT_ENDPOINT, .dev_id=ZB_DIMMABLE_LIGHT_DEVICE_ID, .dev_ver=ZB_DEVICE_VER_DIMMABLE_LIGHT}>(
 	    dev_ctx.basic_attr
-	    , dev_ctx.co2_attr
 	    , dev_ctx.poll_ctrl
+	    , dev_ctx.co2_attr
+	    , dev_ctx.temp_attr
+	    , dev_ctx.humid_attr
 	    )
 	);
 
