@@ -122,8 +122,8 @@ typedef struct {
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
-constexpr auto kAttrTempalue = &zb::zb_zcl_temp_basic_t::measured_value;
-constexpr auto kAttrRelHalue = &zb::zb_zcl_rel_humid_basic_t::measured_value;
+constexpr auto kAttrTempValue = &zb::zb_zcl_temp_basic_t::measured_value;
+constexpr auto kAttrRelHValue = &zb::zb_zcl_rel_humid_basic_t::measured_value;
 constexpr uint32_t kPowerCycleThresholdSeconds = 6 * 60 - 1;
 
 using namespace zb::literals;
@@ -326,6 +326,10 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	sensor_value v;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
 	dim_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
+	sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
+	dim_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
+	sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
+	dim_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
     }else
     {
 	dim_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
