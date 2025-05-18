@@ -43,7 +43,7 @@
 #define ZIGBEE_NETWORK_STATE_LED        DK_LED1
 
 /* Button used to enter the Bulb into the Identify mode. */
-#define IDENTIFY_MODE_BUTTON            DK_BTN4_MSK
+#define IDENTIFY_MODE_BUTTON            DK_BTN1_MSK
 
 /* Button to start Factory Reset */
 #define FACTORY_RESET_BUTTON IDENTIFY_MODE_BUTTON
