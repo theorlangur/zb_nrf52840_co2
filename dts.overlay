@@ -8,7 +8,7 @@
         /* GPIO controlling the MOSFET gate */
         /* GPIO_ACTIVE_HIGH means the sensor is ON when GPIO is high */
         /* Use GPIO_ACTIVE_LOW if your MOSFET logic is inverted */
-        enable-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 
         /* Optional: Define the voltage being regulated */
         // regulator-min-microvolt = ; // e.g., 3.3V
