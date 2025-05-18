@@ -117,8 +117,8 @@ typedef struct {
     zb::zb_zcl_basic_names_t basic_attr;
     zb::zb_zcl_poll_ctrl_basic_t poll_ctrl;
     zb::zb_zcl_co2_basic_t co2_attr;
-    zb::zb_zcl_temp_basic_t temp_attr;
-    zb::zb_zcl_rel_humid_basic_t humid_attr;
+    //zb::zb_zcl_temp_basic_t temp_attr;
+    //zb::zb_zcl_rel_humid_basic_t humid_attr;
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
@@ -130,7 +130,7 @@ using namespace zb::literals;
 /* Zigbee device application context storage. */
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
-	.check_in_interval = 8_min_to_qs,
+	.check_in_interval = 2_min_to_qs,
 	.long_poll_interval = 0xffffffff,//disabled
 	//.short_poll_interval = 1_sec_to_qs,
     }
@@ -141,8 +141,8 @@ constinit static auto dimmable_light_ctx = zb::make_device(
 	    dev_ctx.basic_attr
 	    , dev_ctx.poll_ctrl
 	    , dev_ctx.co2_attr
-	    , dev_ctx.temp_attr
-	    , dev_ctx.humid_attr
+	    //, dev_ctx.temp_attr
+	    //, dev_ctx.humid_attr
 	    )
 	);
 
@@ -326,10 +326,10 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	sensor_value v;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
 	dim_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
-	sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
-	dim_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
-	sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
-	dim_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
+	//sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
+	//dim_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
+	//sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
+	//dim_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
     }else
     {
 	dim_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
