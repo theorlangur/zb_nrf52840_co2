@@ -186,6 +186,7 @@ void co2_thread_entry(void *, void *, void *)
     }
 }
 
+void measure_co2_and_schedule();
 /**@brief Callback for button events.
  *
  * @param[in]   button_state  Bitmask containing the state of the buttons.
@@ -203,6 +204,7 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 		LOG_DBG("After Factory Reset - ignore button release");
 	    } else   {
 		/* Button released before Factory Reset */
+		measure_co2_and_schedule();
 	    }
 	}
     }
@@ -316,7 +318,7 @@ int main(void)
     }
 
     /* Initialize */
-    //configure_gpio();
+    configure_gpio();
     err = settings_subsys_init();
     if (err) {
 	LOG_ERR("settings initialization failed");
