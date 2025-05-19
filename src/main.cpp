@@ -282,6 +282,7 @@ void update_co2_readings_in_zigbee(uint8_t id)
 void zboss_signal_handler(zb_bufid_t bufid)
 {
     /* Update network status LED. */
+    //TODO: remove this for prod: save power
     zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
     auto ret = zb::tpl_signal_handler<{
 	    .on_leave = []{ zb_zcl_poll_control_stop(); },
