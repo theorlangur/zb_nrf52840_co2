@@ -374,7 +374,7 @@ int main(void)
 
     /* Initialize */
     configure_gpio();
-    if (!configure_adc())
+    if (configure_adc() < 0)
     {
 	LOG_ERR("failed to configure adc");
 	return 0;
@@ -387,7 +387,6 @@ int main(void)
 
     zigbee_erase_persistent_storage(false);
     zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
-    //zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(1000 * 30));
     zb_set_keepalive_mode(ED_KEEPALIVE_DISABLED);
     zb_set_rx_on_when_idle(false);
     zigbee_configure_sleepy_behavior(true);
