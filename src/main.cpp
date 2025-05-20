@@ -12,6 +12,7 @@
 #include <zephyr/types.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/devicetree.h>
 #include <soc.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
@@ -21,6 +22,7 @@
 #include <zephyr/settings/settings.h>
 #include <ram_pwrdn.h>
 //#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/adc.h>
 
 //#define FORCE_FMT
 //#define PRINTF_FUNC(...) printk(__VA_ARGS__)
@@ -107,6 +109,14 @@ constinit static auto &co2_ep = co2_ctx.ep<kCO2_EP>();
 /**********************************************************************/
 constinit const struct device *co2sensor = nullptr;
 constinit const struct device *co2_power = nullptr;
+
+#define DT_SPEC_AND_COMMA(node_id, prop, idx) \
+	ADC_DT_SPEC_GET_BY_IDX(node_id, idx),
+
+static const struct adc_dt_spec adc_channels[] = {
+	DT_FOREACH_PROP_ELEM(DT_PATH(zephyr_user), io_channels,
+			     DT_SPEC_AND_COMMA)
+};
 
 /**********************************************************************/
 /* Forward declarations                                               */
@@ -233,6 +243,21 @@ static void configure_gpio(void)
     }
 }
 
+static int configure_adc(void)
+{
+    if (!adc_is_ready_dt(&adc_channels[0])) {
+	printk("ADC controller device %s not ready\n", adc_channels[0].dev->name);
+	return -1;
+    }
+
+    int err = adc_channel_setup_dt(&adc_channels[0]);
+    if (err < 0) {
+	//printk("Could not setup channel #%d (%d)\n", i, err);
+	return err;
+    }
+    return 0;
+}
+
 /**@brief Function for initializing all clusters attributes.
 */
 static void bulb_clusters_attr_init(void)
@@ -325,6 +350,11 @@ int main(void)
 
     /* Initialize */
     configure_gpio();
+    if (!configure_adc())
+    {
+	LOG_ERR("failed to configure adc");
+	return 0;
+    }
     err = settings_subsys_init();
     if (err) {
 	LOG_ERR("settings initialization failed");

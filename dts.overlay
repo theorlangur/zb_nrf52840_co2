@@ -33,6 +33,10 @@
 			zephyr,code = <INPUT_KEY_0>;
 		};
 	};
+
+	zephyr,user {
+		io-channels = <&adc 0>;
+	};
 };
 &pinctrl {
    i2c0_default_alt: i2c0_default_alt {
@@ -67,10 +71,22 @@
 		zephyr,deferred-init;
     };
 };
-&i2c1 {
-    status = "disabled";
-};
 &adc {
+    status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN1>; /* P0.03 */
+		zephyr,resolution = <12>;
+	};
+};
+
+&i2c1 {
     status = "disabled";
 };
 &bt_hci_sdc {
