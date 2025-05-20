@@ -29,6 +29,7 @@
 #include "zb/zb_main.hpp"
 #include "zb/zb_std_cluster_desc.hpp"
 #include "zb/zb_co2_cluster_desc.hpp"
+#include "zb/zb_power_config_cluster_desc.hpp"
 #include "zb/zb_temp_cluster_desc.hpp"
 #include "zb/zb_humid_cluster_desc.hpp"
 #include "zb/zb_poll_ctrl_cluster_desc.hpp"
@@ -60,6 +61,7 @@ constexpr uint16_t kDEV_ID = 0xDEAD;
  */
 typedef struct {
     zb::zb_zcl_basic_names_t basic_attr;
+    zb::zb_zcl_power_cfg_battery_info_t battery_attr;
     zb::zb_zcl_poll_ctrl_basic_t poll_ctrl;
     zb::zb_zcl_co2_basic_t co2_attr;
     //zb::zb_zcl_temp_basic_t temp_attr;
@@ -69,6 +71,8 @@ typedef struct {
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
 constexpr auto kAttrTempValue = &zb::zb_zcl_temp_basic_t::measured_value;
 constexpr auto kAttrRelHValue = &zb::zb_zcl_rel_humid_basic_t::measured_value;
+constexpr auto kAttrBattVoltage = &zb::zb_zcl_power_cfg_battery_info_t::batt_voltage;
+constexpr auto kAttrBattPercentage = &zb::zb_zcl_power_cfg_battery_info_t::batt_percentage_remaining;
 
 constexpr uint32_t kPowerCycleThresholdSeconds = 6 * 60 - 1; //Just under 6 minutes
 
@@ -88,6 +92,7 @@ static constinit bulb_device_ctx_t dev_ctx{
 constinit static auto co2_ctx = zb::make_device( 
 	zb::make_ep_args<{.ep=kCO2_EP, .dev_id=kDEV_ID, .dev_ver=1}>(
 	    dev_ctx.basic_attr
+	    , dev_ctx.battery_attr
 	    , dev_ctx.poll_ctrl
 	    , dev_ctx.co2_attr
 	    //, dev_ctx.temp_attr
