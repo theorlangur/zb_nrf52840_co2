@@ -142,6 +142,10 @@ constexpr size_t MSGQ_CO2_LENGTH = 2;
 
 K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
 
+/**********************************************************************/
+/* Battery                                                            */
+/**********************************************************************/
+int32_t g_BatteryVoltage = 0;
 
 /**********************************************************************/
 /* CO2 measuring thread                                               */
@@ -185,6 +189,24 @@ void co2_thread_entry(void *, void *, void *)
 		    {
 			if (needsPowerCycle) //after power up 2 fetches are needed
 			    sensor_sample_fetch(co2sensor);
+		    }
+
+		    {
+			uint16_t buf;
+			struct adc_sequence sequence = {
+			    .buffer = &buf,
+			    /* buffer size in bytes, not number of samples */
+			    .buffer_size = sizeof(buf),
+			};
+			(void)adc_sequence_init_dt(&adc_channels[0], &sequence);
+
+			int err = adc_read_dt(&adc_channels[0], &sequence);
+			if (err == 0)
+			{
+			    g_BatteryVoltage = (int32_t)buf;
+			    adc_raw_to_millivolts_dt(&adc_channels[0],
+				    &g_BatteryVoltage);
+			}
 		    }
 		    //post to zigbee thread
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
@@ -294,6 +316,8 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	sensor_value v;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
 	co2_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
+	co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
+	co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
 	//sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
 	//co2_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
 	//sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
