@@ -130,6 +130,7 @@ void update_co2_readings_in_zigbee(uint8_t id);
 enum class CO2Commands
 {
     Fetch
+    , Initial
 };
 
 /* Message queue configurations */
@@ -157,6 +158,51 @@ K_THREAD_DEFINE(co2_thread, CO2_THREAD_STACK_SIZE,
 	co2_thread_entry, NULL, NULL, NULL,
 	CO2_THREAD_PRIORITY, 0, -1);
 
+bool update_measurements()
+{
+    bool needsPowerCycle = false;
+    bool res = false;
+    if ((needsPowerCycle = !regulator_is_enabled(co2_power)))
+    {
+	regulator_enable(co2_power);
+	device_init(co2sensor);
+    }
+
+    if (device_is_ready(co2sensor)) {
+	if (sensor_sample_fetch(co2sensor) == 0)
+	{
+	    if (needsPowerCycle) //after power up 2 fetches are needed
+		sensor_sample_fetch(co2sensor);
+	}
+
+	{
+	    uint16_t buf;
+	    struct adc_sequence sequence = {
+		.buffer = &buf,
+		/* buffer size in bytes, not number of samples */
+		.buffer_size = sizeof(buf),
+	    };
+	    (void)adc_sequence_init_dt(&adc_channels[0], &sequence);
+
+	    int err = adc_read_dt(&adc_channels[0], &sequence);
+	    if (err == 0)
+	    {
+		g_BatteryVoltage = (int32_t)buf;
+		adc_raw_to_millivolts_dt(&adc_channels[0],
+			&g_BatteryVoltage);
+	    }
+	}
+	res = true;
+    }
+
+    if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
+    {
+	//check in interval is big enough to power down
+	regulator_disable(co2_power);
+    }
+    return res;
+}
+
 void co2_thread_entry(void *, void *, void *)
 {
     CO2Commands cmd;
@@ -168,6 +214,12 @@ void co2_thread_entry(void *, void *, void *)
 	switch(cmd)
 	{
 	    using enum CO2Commands;
+	    case Initial:
+	    {
+		if (update_measurements())
+		    zigbee_enable();
+	    }
+	    break;
 	    case Fetch:
 	    {
 		auto now = k_uptime_seconds();
@@ -178,44 +230,11 @@ void co2_thread_entry(void *, void *, void *)
 		}
 		g_last_mark = now;
 
-		if ((needsPowerCycle = !regulator_is_enabled(co2_power)))
+
+		if (update_measurements())
 		{
-		    regulator_enable(co2_power);
-		    device_init(co2sensor);
-		}
-
-		if (device_is_ready(co2sensor)) {
-		    if (sensor_sample_fetch(co2sensor) == 0)
-		    {
-			if (needsPowerCycle) //after power up 2 fetches are needed
-			    sensor_sample_fetch(co2sensor);
-		    }
-
-		    {
-			uint16_t buf;
-			struct adc_sequence sequence = {
-			    .buffer = &buf,
-			    /* buffer size in bytes, not number of samples */
-			    .buffer_size = sizeof(buf),
-			};
-			(void)adc_sequence_init_dt(&adc_channels[0], &sequence);
-
-			int err = adc_read_dt(&adc_channels[0], &sequence);
-			if (err == 0)
-			{
-			    g_BatteryVoltage = (int32_t)buf;
-			    adc_raw_to_millivolts_dt(&adc_channels[0],
-				    &g_BatteryVoltage);
-			}
-		    }
 		    //post to zigbee thread
 		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
-		}
-
-		if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
-		{
-		    //check in interval is big enough to power down
-		    regulator_disable(co2_power);
 		}
 	    }
 	    break;
@@ -295,18 +314,16 @@ void measure_co2_and_schedule()
 {
     LOG_INF("measure_co2_and_schedule");
     auto cmd = CO2Commands::Fetch;
-    int res = k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
-    if (res != RET_OK)
-    {
-	//process error
-    }
+    (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 }
 
 void on_zigbee_start()
 {
     zb_zcl_poll_control_start(0, kCO2_EP);
     zb_zcl_poll_controll_register_cb([](uint8_t){measure_co2_and_schedule();});
-    measure_co2_and_schedule();
+
+    //should be there already
+    update_co2_readings_in_zigbee(0);
 }
 
 void update_co2_readings_in_zigbee(uint8_t id)
@@ -336,8 +353,8 @@ void update_co2_readings_in_zigbee(uint8_t id)
 void zboss_signal_handler(zb_bufid_t bufid)
 {
     /* Update network status LED. */
-    //TODO: remove this for prod: save power
-    zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
+    //zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
+
     auto ret = zb::tpl_signal_handler<{
 	    .on_leave = []{ zb_zcl_poll_control_stop(); },
 	    .on_dev_reboot = on_zigbee_start,
@@ -408,8 +425,12 @@ int main(void)
 
     power_down_unused_ram();
     k_thread_start(co2_thread);
-    /* Start Zigbee default thread */
-    zigbee_enable();
+
+    auto cmd = CO2Commands::Initial;
+    (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+
+    ///* Start Zigbee default thread */
+    //zigbee_enable();
 
     LOG_INF("ZBOSS CO2 sensor started");
 
