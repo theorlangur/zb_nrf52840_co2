@@ -23,6 +23,7 @@
 #include <ram_pwrdn.h>
 //#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/adc.h>
+#include "led.h"
 
 //#define FORCE_FMT
 //#define PRINTF_FUNC(...) printk(__VA_ARGS__)
@@ -42,8 +43,6 @@
 /* Model number assigned by manufacturer (32-bytes long string). */
 #define BULB_INIT_BASIC_MODEL_ID        "CO2_v0.1"
 
-/* LED indicating that light switch successfully joind Zigbee network. */
-#define ZIGBEE_NETWORK_STATE_LED        DK_LED1
 
 /* Button used to enter the Bulb into the Identify mode. */
 #define IDENTIFY_MODE_BUTTON            DK_BTN1_MSK
@@ -119,12 +118,6 @@ static const struct adc_dt_spec adc_channels[] = {
 };
 
 /**********************************************************************/
-/* Forward declarations                                               */
-/**********************************************************************/
-void co2_thread_entry(void *, void *, void *);
-void update_co2_readings_in_zigbee(uint8_t id);
-
-/**********************************************************************/
 /* Message Queue definitions + commands                               */
 /**********************************************************************/
 enum class CO2Commands
@@ -133,12 +126,7 @@ enum class CO2Commands
     , Initial
 };
 
-/* Message queue configurations */
-struct co2_thread_msg {
-    CO2Commands cmd;
-};
-
-constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(co2_thread_msg);
+constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(CO2Commands);
 constexpr size_t MSGQ_CO2_LENGTH = 2;
 
 K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
@@ -151,6 +139,9 @@ int32_t g_BatteryVoltage = 0;
 /**********************************************************************/
 /* CO2 measuring thread                                               */
 /**********************************************************************/
+void co2_thread_entry(void *, void *, void *);
+void update_co2_readings_in_zigbee(uint8_t id);
+
 constexpr size_t CO2_THREAD_STACK_SIZE = 512;
 constexpr size_t CO2_THREAD_PRIORITY=7;
 
@@ -258,9 +249,11 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 	    if (was_factory_reset_done()) {
 		/* The long press was for Factory Reset */
 		LOG_DBG("After Factory Reset - ignore button release");
+		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
 	    } else   {
 		/* Button released before Factory Reset */
 		measure_co2_and_schedule();
+		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 500);
 	    }
 	}
     }
@@ -276,11 +269,6 @@ static void configure_gpio(void)
     err = dk_buttons_init(button_changed);
     if (err) {
 	LOG_ERR("Cannot init buttons (err: %d)", err);
-    }
-
-    err = dk_leds_init();
-    if (err) {
-	LOG_ERR("Cannot init LEDs (err: %d)", err);
     }
 }
 
@@ -352,11 +340,9 @@ void update_co2_readings_in_zigbee(uint8_t id)
  */
 void zboss_signal_handler(zb_bufid_t bufid)
 {
-    /* Update network status LED. */
-    //zigbee_led_status_update(bufid, ZIGBEE_NETWORK_STATE_LED);
-
     auto ret = zb::tpl_signal_handler<{
 	    .on_leave = []{ zb_zcl_poll_control_stop(); },
+	    .on_error = []{ led::show_pattern(led::kPATTERN_3_BLIPS_NORMED, 1000); },
 	    .on_dev_reboot = on_zigbee_start,
 	    .on_steering = on_zigbee_start,
 	    .on_can_sleep = zb_sleep_now,
@@ -391,6 +377,11 @@ int main(void)
 
     /* Initialize */
     configure_gpio();
+    if (led::setup() < 0)
+    {
+	LOG_ERR("failed to configure led");
+	return 0;
+    }
     if (configure_adc() < 0)
     {
 	LOG_ERR("failed to configure adc");
@@ -425,9 +416,12 @@ int main(void)
 
     power_down_unused_ram();
     k_thread_start(co2_thread);
+    led::start();
 
     auto cmd = CO2Commands::Initial;
     (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+
+
 
     ///* Start Zigbee default thread */
     //zigbee_enable();

@@ -15,11 +15,13 @@ project("Zigbee CO2 Sensor V2")
 # NORDIC SDK APP START
 target_sources(app PRIVATE
   src/main.cpp
+  src/led.cpp
   submodules/esp_generic_lib/src/lib_linked_list.cpp
 )
 
 target_include_directories(app PRIVATE include)
 target_include_directories(app PRIVATE submodules/esp_generic_lib/include)
 target_link_libraries(app PRIVATE c stdc++ supc++)
-target_compile_options(app PUBLIC -D__cpp_concepts=202002L -Wno-builtin-macro-redefined -Wno-invalid-offsetof)
+target_link_options(app PRIVATE -flto=full)
+target_compile_options(app PUBLIC -D__cpp_concepts=202002L -Wno-builtin-macro-redefined -Wno-invalid-offsetof -flto=full)
 # NORDIC SDK APP END
