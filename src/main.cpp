@@ -37,8 +37,6 @@
 #include "zb/zb_humid_cluster_desc.hpp"
 #include "zb/zb_poll_ctrl_cluster_desc.hpp"
 
-#include "led.cpp"
-
 /* Manufacturer name (32 bytes). */
 #define BULB_INIT_BASIC_MANUF_NAME      "TheOrlangur"
 

@@ -15,6 +15,7 @@ project("Zigbee CO2 Sensor V2")
 # NORDIC SDK APP START
 target_sources(app PRIVATE
   src/main.cpp
+  src/led.cpp
   submodules/esp_generic_lib/src/lib_linked_list.cpp
 )
 
