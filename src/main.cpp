@@ -124,8 +124,9 @@ static const struct adc_dt_spec adc_channels[] = {
 /**********************************************************************/
 enum class CO2Commands
 {
-    Fetch
-    , Initial
+    Initial
+    , Fetch
+    , ManualFetch
 };
 
 constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(CO2Commands);
@@ -222,13 +223,13 @@ void co2_thread_entry(void *, void *, void *)
 		    continue;
 		}
 		g_last_mark = now;
-
-
-		if (update_measurements())
-		{
-		    //post to zigbee thread
-		    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
-		}
+	    }
+	    [[fallthrough]];
+	    case ManualFetch:
+	    if (update_measurements())
+	    {
+		//post to zigbee thread
+		zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 	    }
 	    break;
 	}
@@ -254,7 +255,8 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
 	    } else   {
 		/* Button released before Factory Reset */
-		measure_co2_and_schedule();
+		auto cmd = CO2Commands::ManualFetch;
+		(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 500);
 	    }
 	}
