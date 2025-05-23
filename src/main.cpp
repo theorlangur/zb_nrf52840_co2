@@ -37,6 +37,8 @@
 #include "zb/zb_humid_cluster_desc.hpp"
 #include "zb/zb_poll_ctrl_cluster_desc.hpp"
 
+constexpr bool kPowerSaving = false;
+
 /* Manufacturer name (32 bytes). */
 #define BULB_INIT_BASIC_MANUF_NAME      "TheOrlangur"
 
@@ -398,8 +400,11 @@ int main(void)
     zigbee_erase_persistent_storage(false);
     zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
     zb_set_keepalive_mode(ED_KEEPALIVE_DISABLED);
-    //zb_set_rx_on_when_idle(false);
-    //zigbee_configure_sleepy_behavior(true);
+    if constexpr (kPowerSaving)
+    {
+	zb_set_rx_on_when_idle(false);
+	zigbee_configure_sleepy_behavior(true);
+    }
 
     /* Register callback for handling ZCL commands. */
     auto dev_cb = zb::tpl_device_cb<>;
@@ -416,7 +421,10 @@ int main(void)
 	LOG_ERR("settings loading failed");
     }
 
-    //power_down_unused_ram();
+    if constexpr (kPowerSaving)
+    {
+	power_down_unused_ram();
+    }
     k_thread_start(co2_thread);
     led::start();
 
