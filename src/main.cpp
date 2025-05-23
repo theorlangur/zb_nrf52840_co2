@@ -369,7 +369,7 @@ int main(void)
     co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
     co2_power = DEVICE_DT_GET(DT_NODELABEL(scd41_power));
     if (!device_is_ready(co2_power)) {
-    	printk("Power reg not ready");
+    	//printk("Power reg not ready");
     	return 0;
     }
 
