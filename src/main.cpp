@@ -17,7 +17,6 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/regulator.h>
-#include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
 #include <ram_pwrdn.h>
@@ -50,8 +49,6 @@ constexpr bool kPowerSaving = false;
 
 /* Button to start Factory Reset */
 #define FACTORY_RESET_BUTTON IDENTIFY_MODE_BUTTON
-
-LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 
 /* Device endpoint, used to receive light controlling commands. */
 constexpr uint8_t kCO2_EP = 10;
@@ -250,7 +247,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 	    /* Button changed its state to released */
 	    if (was_factory_reset_done()) {
 		/* The long press was for Factory Reset */
-		LOG_DBG("After Factory Reset - ignore button release");
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
 	    } else   {
 		/* Button released before Factory Reset */
@@ -271,14 +267,13 @@ static void configure_gpio(void)
 
     err = dk_buttons_init(button_changed);
     if (err) {
-	LOG_ERR("Cannot init buttons (err: %d)", err);
     }
 }
 
 static int configure_adc(void)
 {
     if (!adc_is_ready_dt(&adc_channels[0])) {
-	printk("ADC controller device %s not ready\n", adc_channels[0].dev->name);
+	//printk("ADC controller device %s not ready\n", adc_channels[0].dev->name);
 	return -1;
     }
 
@@ -303,7 +298,6 @@ static void bulb_clusters_attr_init(void)
 
 void measure_co2_and_schedule()
 {
-    LOG_INF("measure_co2_and_schedule");
     auto cmd = CO2Commands::Fetch;
     (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 }
@@ -350,7 +344,10 @@ void zboss_signal_handler(zb_bufid_t bufid)
 	    .on_steering = on_zigbee_start,
 	    .on_can_sleep = zb_sleep_now,
     }>(bufid);
-    ZB_ERROR_CHECK(ret);
+    const uint32_t LOCAL_ERR_CODE = (uint32_t) (-ret);	
+    if (LOCAL_ERR_CODE != RET_OK) {				
+	zb_osif_abort();				
+    }							
 }
 
 K_MUTEX_DEFINE(rtt_term_mutex);
@@ -369,8 +366,6 @@ int main(void)
     int blink_status = 0;
     int err;
 
-    LOG_INF("Starting ZBOSS Light Bulb example");
-
     co2sensor = DEVICE_DT_GET(DT_NODELABEL(co2sensor));
     co2_power = DEVICE_DT_GET(DT_NODELABEL(scd41_power));
     if (!device_is_ready(co2_power)) {
@@ -382,17 +377,14 @@ int main(void)
     configure_gpio();
     if (led::setup() < 0)
     {
-	LOG_ERR("failed to configure led");
 	return 0;
     }
     if (configure_adc() < 0)
     {
-	LOG_ERR("failed to configure adc");
 	return 0;
     }
     err = settings_subsys_init();
     if (err) {
-	LOG_ERR("settings initialization failed");
     }
     register_factory_reset_button(FACTORY_RESET_BUTTON);
 
@@ -417,7 +409,6 @@ int main(void)
     /* Settings should be loaded after zcl_scenes_init */
     err = settings_load();
     if (err) {
-	LOG_ERR("settings loading failed");
     }
 
     if constexpr (kPowerSaving)
@@ -429,13 +420,6 @@ int main(void)
 
     auto cmd = CO2Commands::Initial;
     (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
-
-
-
-    ///* Start Zigbee default thread */
-    //zigbee_enable();
-
-    LOG_INF("ZBOSS CO2 sensor started");
 
     while (1) {
 	k_sleep(K_FOREVER);
