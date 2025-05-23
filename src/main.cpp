@@ -21,7 +21,6 @@
 #include <dk_buttons_and_leds.h>
 #include <zephyr/settings/settings.h>
 #include <ram_pwrdn.h>
-//#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/adc.h>
 #include "led.h"
 
