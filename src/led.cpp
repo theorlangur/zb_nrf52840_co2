@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <zephyr/kernel.h>
 #include <dk_buttons_and_leds.h>
+#include "lib/lib_msgq_typed.hpp"
 
 #define STATUS_LED        DK_LED1
 
@@ -12,11 +13,8 @@ namespace led
 	uint32_t p;
 	uint32_t tms;//millis
     };
-    constexpr size_t MSGQ_LED_ENTRY_SIZE = sizeof(msg);
-    constexpr size_t MSGQ_LED_LENGTH = 4;
-
-    K_MSGQ_DEFINE(led_msgq, MSGQ_LED_ENTRY_SIZE, MSGQ_LED_LENGTH, 4);
-
+    using LedQ = msgq::Queue<msg,4>;
+    K_MSGQ_DEFINE_TYPED(LedQ, led_msgq);
 
     void led_thread_entry(void *, void *, void *);
 
@@ -32,7 +30,7 @@ namespace led
 	msg pattern;
 	while(1)
 	{
-	    k_msgq_get(&led_msgq, &pattern, K_FOREVER);
+	    led_msgq >> pattern;
 	    size_t bitDuration = pattern.tms / 32;
 	    for(int i = 0; i < 32; ++i)
 	    {
@@ -68,7 +66,6 @@ namespace led
 
     void show_pattern(uint32_t p, uint32_t tms)
     {
-	msg _msg{p, tms};
-	(void)k_msgq_put(&led_msgq, &_msg, K_FOREVER);
+	led_msgq << msg{p, tms};
     }
 }

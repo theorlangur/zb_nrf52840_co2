@@ -21,6 +21,7 @@
 #include <zephyr/settings/settings.h>
 #include <ram_pwrdn.h>
 #include <zephyr/drivers/adc.h>
+#include "lib/lib_msgq_typed.hpp"
 #include "led.h"
 
 //#define FORCE_FMT
@@ -63,8 +64,8 @@ typedef struct {
     zb::zb_zcl_power_cfg_battery_info_t battery_attr;
     zb::zb_zcl_poll_ctrl_basic_t poll_ctrl;
     zb::zb_zcl_co2_basic_t co2_attr;
-    //zb::zb_zcl_temp_basic_t temp_attr;
-    //zb::zb_zcl_rel_humid_basic_t humid_attr;
+    zb::zb_zcl_temp_basic_t temp_attr;
+    zb::zb_zcl_rel_humid_basic_t humid_attr;
 } bulb_device_ctx_t;
 
 constexpr auto kAttrCO2Value = &zb::zb_zcl_co2_basic_t::measured_value;
@@ -94,8 +95,8 @@ constinit static auto co2_ctx = zb::make_device(
 	    , dev_ctx.battery_attr
 	    , dev_ctx.poll_ctrl
 	    , dev_ctx.co2_attr
-	    //, dev_ctx.temp_attr
-	    //, dev_ctx.humid_attr
+	    , dev_ctx.temp_attr
+	    , dev_ctx.humid_attr
 	    )
 	);
 
@@ -125,10 +126,8 @@ enum class CO2Commands
     , ManualFetch
 };
 
-constexpr size_t MSGQ_CO2_ENTRY_SIZE = sizeof(CO2Commands);
-constexpr size_t MSGQ_CO2_LENGTH = 2;
-
-K_MSGQ_DEFINE(co2_msgq, MSGQ_CO2_ENTRY_SIZE, MSGQ_CO2_LENGTH, 4);
+using CO2Q = msgq::Queue<CO2Commands,4>;
+K_MSGQ_DEFINE_TYPED(CO2Q, co2v2);
 
 /**********************************************************************/
 /* Battery                                                            */
@@ -188,7 +187,7 @@ bool update_measurements()
     if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
     {
 	//check in interval is big enough to power down
-	regulator_disable(co2_power);
+	//regulator_disable(co2_power);
     }
     return res;
 }
@@ -200,7 +199,8 @@ void co2_thread_entry(void *, void *, void *)
     static uint32_t g_last_mark = 0; 
     while(1)
     {
-	k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
+	co2v2 >> cmd;
+	//k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
 	switch(cmd)
 	{
 	    using enum CO2Commands;
@@ -250,8 +250,9 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
 	    } else   {
 		/* Button released before Factory Reset */
-		auto cmd = CO2Commands::ManualFetch;
-		(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+		co2v2 << CO2Commands::ManualFetch;
+		//auto cmd = CO2Commands::ManualFetch;
+		//(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 500);
 	    }
 	}
@@ -298,8 +299,9 @@ static void bulb_clusters_attr_init(void)
 
 void measure_co2_and_schedule()
 {
-    auto cmd = CO2Commands::Fetch;
-    (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+    co2v2 << CO2Commands::Fetch;
+    //auto cmd = CO2Commands::Fetch;
+    //(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 }
 
 void on_zigbee_start()
@@ -320,10 +322,12 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	co2_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
 	co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
 	co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
-	//sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
-	//co2_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
-	//sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
-	//co2_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
+	v.val1 = v.val2 = 0;
+	sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
+	co2_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
+	v.val1 = v.val2 = 0;
+	sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
+	co2_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
     }else
     {
 	//co2_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
@@ -418,8 +422,9 @@ int main(void)
     k_thread_start(co2_thread);
     led::start();
 
-    auto cmd = CO2Commands::Initial;
-    (void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
+    co2v2 << CO2Commands::Initial;
+    //auto cmd = CO2Commands::Initial;
+    //(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 
     while (1) {
 	k_sleep(K_FOREVER);
