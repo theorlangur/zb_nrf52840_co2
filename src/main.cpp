@@ -156,9 +156,18 @@ bool update_measurements()
 	regulator_enable(co2_power);
 	device_init(co2sensor);
     }
-
     if (device_is_ready(co2sensor)) {
-	if (sensor_sample_fetch(co2sensor) == 0)
+	int err = -EAGAIN;
+	int max_attempts = 3;
+	while((err == -EAGAIN) && max_attempts)
+	{
+	    err = sensor_sample_fetch(co2sensor);
+	    if (err == -EAGAIN)
+		k_sleep(K_MSEC(1000));
+	    --max_attempts;
+	}
+
+	if (err == 0)
 	{
 	    if (needsPowerCycle) //after power up 2 fetches are needed
 		sensor_sample_fetch(co2sensor);
@@ -187,7 +196,7 @@ bool update_measurements()
     if (zb::qs_to_s(dev_ctx.poll_ctrl.check_in_interval) >= kPowerCycleThresholdSeconds)//seconds
     {
 	//check in interval is big enough to power down
-	//regulator_disable(co2_power);
+	regulator_disable(co2_power);
     }
     return res;
 }
@@ -200,7 +209,6 @@ void co2_thread_entry(void *, void *, void *)
     while(1)
     {
 	co2v2 >> cmd;
-	//k_msgq_get(&co2_msgq, &cmd, K_FOREVER);
 	switch(cmd)
 	{
 	    using enum CO2Commands;
@@ -251,8 +259,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 	    } else   {
 		/* Button released before Factory Reset */
 		co2v2 << CO2Commands::ManualFetch;
-		//auto cmd = CO2Commands::ManualFetch;
-		//(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 500);
 	    }
 	}
@@ -300,8 +306,6 @@ static void bulb_clusters_attr_init(void)
 void measure_co2_and_schedule()
 {
     co2v2 << CO2Commands::Fetch;
-    //auto cmd = CO2Commands::Fetch;
-    //(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 }
 
 void on_zigbee_start()
@@ -322,10 +326,8 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	co2_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
 	co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
 	co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
-	v.val1 = v.val2 = 0;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
 	co2_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
-	v.val1 = v.val2 = 0;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
 	co2_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
     }else
@@ -423,8 +425,6 @@ int main(void)
     led::start();
 
     co2v2 << CO2Commands::Initial;
-    //auto cmd = CO2Commands::Initial;
-    //(void)k_msgq_put(&co2_msgq, &cmd, K_FOREVER);
 
     while (1) {
 	k_sleep(K_FOREVER);
