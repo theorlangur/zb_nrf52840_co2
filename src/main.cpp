@@ -36,6 +36,8 @@
 #include "zb/zb_humid_cluster_desc.hpp"
 #include "zb/zb_poll_ctrl_cluster_desc.hpp"
 
+#include "zb/zb_alarm.hpp"
+
 constexpr bool kPowerSaving = false;
 
 /* Manufacturer name (32 bytes). */
@@ -240,7 +242,15 @@ void co2_thread_entry(void *, void *, void *)
     }
 }
 
-void measure_co2_and_schedule();
+zb::ZbTimerExt g_FactoryResetDoneChecker;
+
+void factory_reset_done_reboot(uint8_t bufid)
+{
+    /* The long press was for Factory Reset */
+    k_sleep(K_MSEC(2100));
+    sys_reboot(SYS_REBOOT_COLD);
+}
+
 /**@brief Callback for button events.
  *
  * @param[in]   button_state  Bitmask containing the state of the buttons.
@@ -251,13 +261,22 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
     if (IDENTIFY_MODE_BUTTON & has_changed) {
 	if (IDENTIFY_MODE_BUTTON & button_state) {
 	    /* Button changed its state to pressed */
+	    g_FactoryResetDoneChecker.Setup([]{
+		    if (was_factory_reset_done()) {
+			/* The long press was for Factory Reset */
+			led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
+			k_sleep(K_MSEC(2100));
+			sys_reboot(SYS_REBOOT_COLD);
+			//zigbee_schedule_callback(factory_reset_done_reboot, 0);
+			return false;
+		    }
+		    return true;
+	    }, 1000);
 	} else {
 	    /* Button changed its state to released */
-	    if (was_factory_reset_done()) {
-		/* The long press was for Factory Reset */
-		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
-	    } else   {
+	    if (!was_factory_reset_done()) {
 		/* Button released before Factory Reset */
+		g_FactoryResetDoneChecker.Cancel();
 		co2v2 << CO2Commands::ManualFetch;
 		led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 500);
 	    }
@@ -303,15 +322,11 @@ static void bulb_clusters_attr_init(void)
     dev_ctx.basic_attr.power_source = zb::zb_zcl_basic_min_t::PowerSource::Battery;
 }
 
-void measure_co2_and_schedule()
-{
-    co2v2 << CO2Commands::Fetch;
-}
-
 void on_zigbee_start()
 {
     zb_zcl_poll_control_start(0, kCO2_EP);
-    zb_zcl_poll_controll_register_cb([](uint8_t){measure_co2_and_schedule();});
+    zb_zcl_poll_controll_register_cb([](uint8_t){co2v2 << CO2Commands::Fetch;});
+    
 
     //should be there already
     update_co2_readings_in_zigbee(0);
