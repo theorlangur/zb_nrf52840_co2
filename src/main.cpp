@@ -244,13 +244,6 @@ void co2_thread_entry(void *, void *, void *)
 
 zb::ZbTimerExt g_FactoryResetDoneChecker;
 
-void factory_reset_done_reboot(uint8_t bufid)
-{
-    /* The long press was for Factory Reset */
-    k_sleep(K_MSEC(2100));
-    sys_reboot(SYS_REBOOT_COLD);
-}
-
 /**@brief Callback for button events.
  *
  * @param[in]   button_state  Bitmask containing the state of the buttons.
@@ -267,7 +260,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 			led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
 			k_sleep(K_MSEC(2100));
 			sys_reboot(SYS_REBOOT_COLD);
-			//zigbee_schedule_callback(factory_reset_done_reboot, 0);
 			return false;
 		    }
 		    return true;
