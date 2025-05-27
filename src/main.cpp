@@ -258,8 +258,6 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 		    if (was_factory_reset_done()) {
 			/* The long press was for Factory Reset */
 			led::show_pattern(led::kPATTERN_2_BLIPS_NORMED, 2000);
-			k_sleep(K_MSEC(2100));
-			sys_reboot(SYS_REBOOT_COLD);
 			return false;
 		    }
 		    return true;
@@ -351,7 +349,11 @@ void update_co2_readings_in_zigbee(uint8_t id)
 void zboss_signal_handler(zb_bufid_t bufid)
 {
     auto ret = zb::tpl_signal_handler<{
-	    .on_leave = []{ zb_zcl_poll_control_stop(); },
+	    .on_leave = []{ 
+		zb_zcl_poll_control_stop(); 
+		k_sleep(K_MSEC(2100));
+		sys_reboot(SYS_REBOOT_COLD);
+	    },
 	    .on_error = []{ led::show_pattern(led::kPATTERN_3_BLIPS_NORMED, 1000); },
 	    .on_dev_reboot = on_zigbee_start,
 	    .on_steering = on_zigbee_start,
@@ -392,6 +394,9 @@ int main(void)
     {
 	return 0;
     }
+    led::start();
+    led::show_pattern(led::kPATTERN_4_BLIPS_NORMED, 1000);
+
     if (configure_adc() < 0)
     {
 	return 0;
@@ -429,7 +434,6 @@ int main(void)
 	power_down_unused_ram();
     }
     k_thread_start(co2_thread);
-    led::start();
 
     co2v2 << CO2Commands::Initial;
 
