@@ -38,7 +38,7 @@
 
 #include "zb/zb_alarm.hpp"
 
-constexpr bool kPowerSaving = false;
+constexpr bool kPowerSaving = true;
 
 /* Manufacturer name (32 bytes). */
 #define BULB_INIT_BASIC_MANUF_NAME      "TheOrlangur"
@@ -82,7 +82,7 @@ using namespace zb::literals;
 /* Zigbee device application context storage. */
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
-	.check_in_interval = 2_min_to_qs,
+	.check_in_interval = 8_min_to_qs,
 	.long_poll_interval = 0xffffffff,//disabled
 	//.short_poll_interval = 1_sec_to_qs,
     },
@@ -149,6 +149,27 @@ K_THREAD_DEFINE(co2_thread, CO2_THREAD_STACK_SIZE,
 	co2_thread_entry, NULL, NULL, NULL,
 	CO2_THREAD_PRIORITY, 0, -1);
 
+bool update_battery_state()
+{
+    uint16_t buf;
+    struct adc_sequence sequence = {
+	.buffer = &buf,
+	/* buffer size in bytes, not number of samples */
+	.buffer_size = sizeof(buf),
+    };
+    (void)adc_sequence_init_dt(&adc_channels[0], &sequence);
+
+    int err = adc_read_dt(&adc_channels[0], &sequence);
+    if (err == 0)
+    {
+	g_BatteryVoltage = (int32_t)buf;
+	adc_raw_to_millivolts_dt(&adc_channels[0],
+		&g_BatteryVoltage);
+	return true;
+    }
+    return false;
+}
+
 bool update_measurements()
 {
     bool needsPowerCycle = false;
@@ -175,23 +196,6 @@ bool update_measurements()
 		sensor_sample_fetch(co2sensor);
 	}
 
-	{
-	    uint16_t buf;
-	    struct adc_sequence sequence = {
-		.buffer = &buf,
-		/* buffer size in bytes, not number of samples */
-		.buffer_size = sizeof(buf),
-	    };
-	    (void)adc_sequence_init_dt(&adc_channels[0], &sequence);
-
-	    int err = adc_read_dt(&adc_channels[0], &sequence);
-	    if (err == 0)
-	    {
-		g_BatteryVoltage = (int32_t)buf;
-		adc_raw_to_millivolts_dt(&adc_channels[0],
-			&g_BatteryVoltage);
-	    }
-	}
 	res = true;
     }
 
@@ -203,6 +207,7 @@ bool update_measurements()
     return res;
 }
 
+static constinit bool g_CO2ErrorState = false;
 void co2_thread_entry(void *, void *, void *)
 {
     CO2Commands cmd;
@@ -216,8 +221,9 @@ void co2_thread_entry(void *, void *, void *)
 	    using enum CO2Commands;
 	    case Initial:
 	    {
-		if (update_measurements())
-		    zigbee_enable();
+		g_CO2ErrorState = !update_measurements();
+		update_battery_state();
+		zigbee_enable();
 	    }
 	    break;
 	    case Fetch:
@@ -232,11 +238,10 @@ void co2_thread_entry(void *, void *, void *)
 	    }
 	    [[fallthrough]];
 	    case ManualFetch:
-	    if (update_measurements())
-	    {
-		//post to zigbee thread
-		zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
-	    }
+	    g_CO2ErrorState = !update_measurements();
+	    update_battery_state();
+	    //post to zigbee thread
+	    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 	    break;
 	}
     }
@@ -324,21 +329,22 @@ void on_zigbee_start()
 
 void update_co2_readings_in_zigbee(uint8_t id)
 {
-    if (co2sensor)
+    if (co2sensor && !g_CO2ErrorState)
     {
 	sensor_value v;
 	sensor_channel_get(co2sensor, SENSOR_CHAN_CO2, &v);
 	co2_ep.attr<kAttrCO2Value>() = float(v.val1) / 1'000'000.f;
-	co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
-	co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
 	sensor_channel_get(co2sensor, SENSOR_CHAN_AMBIENT_TEMP, &v);
 	co2_ep.attr<kAttrTempValue>() = zb::zb_zcl_temp_t::FromC(float(v.val1) + float(v.val2) / 1000'000.f);
 	sensor_channel_get(co2sensor, SENSOR_CHAN_HUMIDITY, &v);
 	co2_ep.attr<kAttrRelHValue>() = zb::zb_zcl_rel_humid_t::FromRelH(float(v.val1) + float(v.val2) / 1000'000.f);
     }else
     {
-	//co2_ep.attr<kAttrCO2Value>() = float(200) / 1'000'000.f;
+	static int g_BogusCO2 = 0;
+	co2_ep.attr<kAttrCO2Value>() = float((g_BogusCO2 % 100) + 200) / 1'000'000.f;
     }
+    co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
+    co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
 }
 
 /**@brief Zigbee stack event handler.
