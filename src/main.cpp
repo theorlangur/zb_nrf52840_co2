@@ -342,6 +342,7 @@ void update_co2_readings_in_zigbee(uint8_t id)
     {
 	static int g_BogusCO2 = 0;
 	co2_ep.attr<kAttrCO2Value>() = float((g_BogusCO2 % 100) + 200) / 1'000'000.f;
+	++g_BogusCO2;
     }
     co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
     co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
