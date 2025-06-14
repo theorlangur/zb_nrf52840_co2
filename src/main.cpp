@@ -134,6 +134,9 @@ K_MSGQ_DEFINE_TYPED(CO2Q, co2v2);
 /**********************************************************************/
 /* Battery                                                            */
 /**********************************************************************/
+constexpr int32_t g_MaxBatteryVoltage = 1600;//mV
+constexpr int32_t g_MinBatteryVoltage = 900;//mV
+constexpr int32_t g_BatteryVoltageRange = g_MaxBatteryVoltage - g_MinBatteryVoltage;//mV
 int32_t g_BatteryVoltage = 0;
 
 /**********************************************************************/
@@ -345,7 +348,7 @@ void update_co2_readings_in_zigbee(uint8_t id)
 	++g_BogusCO2;
     }
     co2_ep.attr<kAttrBattVoltage>() = uint8_t(g_BatteryVoltage / 100);
-    co2_ep.attr<kAttrBattPercentage>() = uint8_t(g_BatteryVoltage * 200 / 1600);
+    co2_ep.attr<kAttrBattPercentage>() = uint8_t((g_BatteryVoltage - g_MinBatteryVoltage) * 200 / g_BatteryVoltageRange);
 }
 
 /**@brief Zigbee stack event handler.
