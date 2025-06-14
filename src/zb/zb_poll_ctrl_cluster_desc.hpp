@@ -14,9 +14,9 @@ namespace zb
 {
     namespace literals
     {
-        constexpr uint32_t operator"" _sec_to_qs(unsigned long long v) { return v * 4; }
-        constexpr uint32_t operator"" _min_to_qs(unsigned long long v) { return v * 4 * 60; }
-        constexpr uint32_t operator"" _h_to_qs(unsigned long long v) { return v * 4 * 60 * 60; }
+        constexpr uint32_t operator""_sec_to_qs(unsigned long long v) { return v * 4; }
+        constexpr uint32_t operator""_min_to_qs(unsigned long long v) { return v * 4 * 60; }
+        constexpr uint32_t operator""_h_to_qs(unsigned long long v) { return v * 4 * 60 * 60; }
     }
 
     constexpr uint32_t qs_to_s(uint32_t v) { return v / 4; }
