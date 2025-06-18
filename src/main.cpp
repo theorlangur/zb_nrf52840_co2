@@ -324,6 +324,11 @@ void on_zigbee_start()
 {
     zb_zcl_poll_control_start(0, kCO2_EP);
     zb_zcl_poll_controll_register_cb([](uint8_t){co2v2 << CO2Commands::Fetch;});
+
+    if (dev_ctx.poll_ctrl.long_poll_interval == 0xffffffff)
+    {
+	zb_zdo_pim_set_long_poll_interval(1000*60*10);
+    }
     
 
     //should be there already
