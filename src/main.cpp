@@ -422,7 +422,8 @@ int main(void)
 
     zigbee_erase_persistent_storage(false);
     zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
-    zb_set_keepalive_mode(ED_KEEPALIVE_DISABLED);
+    //zb_set_keepalive_mode(BOTH_KEEPALIVE_METHODS);
+    //zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(1000*60*30));
     if constexpr (kPowerSaving)
     {
 	zb_set_rx_on_when_idle(false);
