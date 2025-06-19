@@ -83,7 +83,7 @@ using namespace zb::literals;
 static constinit bulb_device_ctx_t dev_ctx{
     .poll_ctrl = {
 	.check_in_interval = 8_min_to_qs,
-	.long_poll_interval = 0xffffffff,//disabled
+	.long_poll_interval = 60_min_to_qs,
 	//.short_poll_interval = 1_sec_to_qs,
     },
     .co2_attr{
@@ -422,8 +422,8 @@ int main(void)
 
     zigbee_erase_persistent_storage(false);
     zb_set_ed_timeout(ED_AGING_TIMEOUT_64MIN);
+    zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(1000*60*30));
     //zb_set_keepalive_mode(BOTH_KEEPALIVE_METHODS);
-    //zb_set_keepalive_timeout(ZB_MILLISECONDS_TO_BEACON_INTERVAL(1000*60*30));
     if constexpr (kPowerSaving)
     {
 	zb_set_rx_on_when_idle(false);
