@@ -134,10 +134,12 @@ K_MSGQ_DEFINE_TYPED(CO2Q, co2v2);
 /**********************************************************************/
 /* Battery                                                            */
 /**********************************************************************/
+constexpr size_t g_BatteryMeasurementCycle = 20;
 constexpr int32_t g_MaxBatteryVoltage = 1600;//mV
 constexpr int32_t g_MinBatteryVoltage = 900;//mV
 constexpr int32_t g_BatteryVoltageRange = g_MaxBatteryVoltage - g_MinBatteryVoltage;//mV
 int32_t g_BatteryVoltage = 0;
+
 
 /**********************************************************************/
 /* CO2 measuring thread                                               */
@@ -238,11 +240,15 @@ void co2_thread_entry(void *, void *, void *)
 		    continue;
 		}
 		g_last_mark = now;
+
+		static size_t g_battery_counter = 0;
+		if ((g_battery_counter % g_BatteryMeasurementCycle) == 0)
+		    update_battery_state();
+		++g_battery_counter;
 	    }
 	    [[fallthrough]];
 	    case ManualFetch:
 	    g_CO2ErrorState = !update_measurements();
-	    update_battery_state();
 	    //post to zigbee thread
 	    zigbee_schedule_callback(update_co2_readings_in_zigbee, 0);
 	    break;
